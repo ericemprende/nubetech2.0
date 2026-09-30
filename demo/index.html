@@ -1,0 +1,1769 @@
+<title>Nubeletech Convocatorias</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  /*
+    Layout concept: a fixed dark "night" sidebar (wayfinding) beside a light
+    working canvas — the sidebar never changes with the light/dark toggle,
+    since it is the product's own chrome, like Notion/Linear's rail.
+    The toggle switches the *canvas* between two deliberate looks: a cloud-blue
+    "daylight review" mode and a deep "focus" mode for late-night formulation.
+  */
+  :root {
+    --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+    --surface: #FFFFFF;
+    --border: #E4E7EC;
+    --text: #131A2A;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: #0B0F16;
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  #root { height: 100%; padding-inline: 16px; padding-block: 16px; display: flex; }
+  #root > div { margin: auto; width: 100%; max-width: 1440px; height: 100%; max-height: 960px; border-radius: 20px; box-shadow: 0 30px 90px rgba(0,0,0,0.35); }
+  @media (max-width: 700px) {
+    #root { padding: 0; }
+    #root > div { border-radius: 0; max-height: none; box-shadow: none; }
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid #3FA5C7; outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+</style>
+
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useEffect, createContext, useContext } = React;
+
+/* ============================================================================
+   NUBELETECH 2.0 — Copiloto inteligente para convocatorias
+   Design tokens
+   - Display / nav:  "Space Grotesk"  (geometric, confident — wayfinding & headers)
+   - Body / UI:      "Inter"          (workhorse productivity-app text)
+   - Data / amounts: "IBM Plex Mono"  (tabular figures — dashboard precision)
+   - Palette: deep cloud-blue "night" neutrals + institutional teal + funding gold
+   - Signature: the segmented progress ring — one motif reused for pipeline %,
+     checklist %, budget %, and evaluation score, wherever progress is the point.
+   ============================================================================ */
+
+const palette = {
+  light: {
+    bg: "#F6F7F9", surface: "#FFFFFF", surfaceAlt: "#F0F2F5",
+    border: "#E4E7EC", borderStrong: "#D3D8E0",
+    text: "#131A2A", textMuted: "#5B6472", textFaint: "#8A93A3",
+    brand: "#0B4F6C", brandSoft: "#E4EEF2", brand2: "#12708F",
+    gold: "#C8862A", goldSoft: "#FBF1DF",
+    success: "#1E8E5A", successSoft: "#E4F5EC",
+    danger: "#C4453A", dangerSoft: "#FBEAE8",
+    warn: "#B8791A", warnSoft: "#FBF0DD",
+    info: "#3457B2", infoSoft: "#EAEEFA",
+    sidebarBg: "#0F2A38", sidebarText: "#C9DAE1", sidebarActive: "#153B4D",
+  },
+  dark: {
+    bg: "#0B0F16", surface: "#12161F", surfaceAlt: "#171C27",
+    border: "#232A38", borderStrong: "#2E3648",
+    text: "#EDF0F5", textMuted: "#9AA5B5", textFaint: "#6B7486",
+    brand: "#3FA5C7", brandSoft: "#132A33", brand2: "#5BC2DE",
+    gold: "#E3AC52", goldSoft: "#2A2213",
+    success: "#4CC38A", successSoft: "#122A21",
+    danger: "#E5776C", dangerSoft: "#2C1917",
+    warn: "#E3AC52", warnSoft: "#2A2213",
+    info: "#8FA6E8", infoSoft: "#181F31",
+    sidebarBg: "#080B10", sidebarText: "#8FA3AD", sidebarActive: "#12161F",
+  },
+};
+
+const ThemeCtx = createContext(null);
+const useT = () => useContext(ThemeCtx);
+
+/* ---------------------------------------------------------------------- */
+/* ICON SYSTEM — small original line-icon set (no external icon library)   */
+/* ---------------------------------------------------------------------- */
+
+const ICONS = {
+  dashboard: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  compass: '<circle cx="12" cy="12" r="9"/><path d="M15 9l-2 6-6 2 2-6z"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/>',
+  sparkles: '<path d="M11 3l1.2 3.6L16 8l-3.8 1.4L11 13l-1.2-3.6L6 8l3.8-1.4z"/><path d="M18 14l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>',
+  bot: '<rect x="5" y="8" width="14" height="11" rx="3"/><circle cx="9.5" cy="13.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="13.5" r="1.2" fill="currentColor" stroke="none"/><path d="M12 8V5"/><circle cx="12" cy="4" r="1"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17"/><path d="M8 3v3M16 3v3"/>',
+  calendarClock: '<rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17"/><path d="M8 3v3M16 3v3"/><circle cx="14.5" cy="15" r="3.4"/><path d="M14.5 13.4V15l1.1.9"/>',
+  bell: '<path d="M12 4a4.2 4.2 0 0 0-4.2 4.2V12c0 1.3-.5 2.5-1.4 3.5h11.2c-.9-1-1.4-2.2-1.4-3.5V8.2A4.2 4.2 0 0 0 12 4z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-5 5.5-5s4.9 2 5.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.8 14.2c2 .3 3.6 2 4.1 4.3"/>',
+  creditCard: '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 14.5h4"/>',
+  chevron: '<path d="M9 6l6 6-6 6"/>',
+  chevronsUpDown: '<path d="M8 9l4-4 4 4"/><path d="M8 15l4 4 4-4"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M4.5 12H2M22 12h-2.5M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/>',
+  moon: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+  checkSquare: '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M7.5 12.5l3 3 6-6.5"/>',
+  checkCircle: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12.3l2.8 2.8L16.5 9"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/>',
+  fileText: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9.5 13h5M9.5 16.5h5"/>',
+  wallet: '<rect x="3" y="6.5" width="18" height="12.5" rx="2.5"/><path d="M3 10.5h18"/><circle cx="16.5" cy="14.5" r="1.2" fill="currentColor" stroke="none"/>',
+  image: '<rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 17l5-5 3.5 3.5L17 11l3 3.5"/>',
+  history: '<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 5v4h4"/><path d="M12 8.5V12l3 2"/>',
+  mapPin: '<path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/>',
+  externalLink: '<path d="M9 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/><path d="M14 4h6v6"/><path d="M20 4L10.5 13.5"/>',
+  filter: '<path d="M4 5h16l-6.5 7.5v5.5l-3 2v-7.5z"/>',
+  trend: '<path d="M4 16l5.5-6 4 4L20 6"/><path d="M15 6h5v5"/>',
+  alertCircle: '<circle cx="12" cy="12" r="8.5"/><path d="M12 8v5"/><circle cx="12" cy="16.3" r="0.9" fill="currentColor" stroke="none"/>',
+  star: '<path d="M12 3.5l2.5 5.6 6 .6-4.6 4 1.3 6-5.2-3.2-5.2 3.2 1.3-6-4.6-4 6-.6z"/>',
+  award: '<circle cx="12" cy="8.5" r="5"/><path d="M9 13l-1.5 7 4.5-2.3 4.5 2.3L15 13"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+  dollar: '<path d="M12 3v18"/><path d="M16.5 7.5c0-1.7-2-2.8-4.5-2.8s-4.5 1-4.5 2.8 2 2.5 4.5 3 4.5 1.2 4.5 3-2 2.8-4.5 2.8-4.5-1-4.5-2.8"/>',
+  send: '<path d="M4 12L20 4l-6.5 16-3-6.5z"/><path d="M20 4L10.5 13.5"/>',
+  moreHorizontal: '<circle cx="5.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+  edit: '<path d="M4 20l1-4.2L15.5 5.3a1.6 1.6 0 0 1 2.3 0l1 1a1.6 1.6 0 0 1 0 2.3L8.2 19 4 20z"/><path d="M14 7l3 3"/>',
+  trash: '<path d="M5 7h14"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M7 7l1 13h8l1-13"/><path d="M10 11v6M14 11v6"/>',
+  userPlus: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-5 5.5-5s4.9 2 5.5 5"/><path d="M18.5 8v5M16 10.5h5"/>',
+  shield: '<path d="M12 3l7 3v5.5c0 4.6-3 7.9-7 9.5-4-1.6-7-4.9-7-9.5V6z"/>',
+  shieldCheck: '<path d="M12 3l7 3v5.5c0 4.6-3 7.9-7 9.5-4-1.6-7-4.9-7-9.5V6z"/><path d="M9 12l2 2 4-4.5"/>',
+  shieldAlert: '<path d="M12 3l7 3v5.5c0 4.6-3 7.9-7 9.5-4-1.6-7-4.9-7-9.5V6z"/><path d="M12 8v4.5"/><circle cx="12" cy="15.3" r="0.9" fill="currentColor" stroke="none"/>',
+  mail: '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/>',
+  phone: '<path d="M6.5 3.5l3 1.5-1 3.5c1 2 2.8 3.8 4.8 4.8l3.5-1 1.5 3-2 2.7c-3-.2-6.4-2-9-4.5s-4.3-6-4.5-9z"/>',
+  arrowRight: '<path d="M4 12h15"/><path d="M13 6l6 6-6 6"/>',
+  arrowUpRight: '<path d="M6 18L18 6"/><path d="M9 6h9v9"/>',
+  bookOpen: '<path d="M12 6.5c-1.8-1.4-4.3-2-7-2v13c2.7 0 5.2.6 7 2 1.8-1.4 4.3-2 7-2v-13c-2.7 0-5.2.6-7 2z"/><path d="M12 6.5v13"/>',
+  scale: '<path d="M12 3v17"/><path d="M7 21h10"/><path d="M4 7h6M14 7h6"/><path d="M4 7l-2.5 5a2.7 2.7 0 0 0 5 0z"/><path d="M20 7l-2.5 5a2.7 2.7 0 0 0 5 0z"/>',
+  calculator: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7.5h8"/><path d="M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/>',
+  barChart: '<path d="M4 20V10M10 20V4M16 20v-7M4 20h16"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M4.9 6.5l1.9 1.1M17.2 16.4l1.9 1.1M3 12h2.2M18.8 12H21M4.9 17.5l1.9-1.1M17.2 7.6l1.9-1.1"/>',
+  logOut: '<path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/><path d="M15 16l4-4-4-4"/><path d="M19 12H9"/>',
+  building: '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2"/><path d="M10 21v-3h4v3"/>',
+  globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.3 2.2 3.5 5.2 3.5 8.5s-1.2 6.3-3.5 8.5c-2.3-2.2-3.5-5.2-3.5-8.5S9.7 5.7 12 3.5z"/>',
+  layers: '<path d="M12 3l8 4.5-8 4.5-8-4.5z"/><path d="M4 12l8 4.5 8-4.5"/><path d="M4 16.5L12 21l8-4.5"/>',
+  folder: '<path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M3.5 9.5h17"/>',
+  grip: '<circle cx="9" cy="6" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.1" fill="currentColor" stroke="none"/>',
+  refresh: '<path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15.5"/><path d="M4 20v-4.5h4.5"/>',
+  download: '<path d="M12 4v11"/><path d="M7.5 11.5L12 16l4.5-4.5"/><path d="M4.5 19.5h15"/>',
+  upload: '<path d="M12 20V9"/><path d="M7.5 13.5L12 9l4.5 4.5"/><path d="M4.5 19.5h15"/>',
+  link: '<rect x="3" y="8.5" width="8" height="7" rx="3.5" transform="rotate(-20 7 12)"/><rect x="13" y="8.5" width="8" height="7" rx="3.5" transform="rotate(-20 17 12)"/>',
+  messageSquare: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v10A1.5 1.5 0 0 1 18.5 17H9l-4 3.5V17H5.5A1.5 1.5 0 0 1 4 15.5z"/>',
+  circle: '<circle cx="12" cy="12" r="8.5"/>',
+  listChecks: '<path d="M9.5 6.5h11M9.5 12h11M9.5 17.5h11"/><path d="M4 6l1 1 2-2M4 11.5l1 1 2-2M4 17l1 1 2-2"/>',
+  clipboardList: '<rect x="5.5" y="4.5" width="13" height="16" rx="2"/><rect x="9" y="3" width="6" height="3" rx="1"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/>',
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r="0.9" fill="currentColor" stroke="none"/>',
+  paperclip: '<path d="M8 12.5l6.5-6.5a3 3 0 0 1 4.2 4.2L10.5 18.4a5 5 0 0 1-7-7L12 3"/>',
+  plusCircle: '<circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/>',
+  helpCircle: '<circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.3 2-2.3 3.6"/><circle cx="12" cy="16.7" r="0.8" fill="currentColor" stroke="none"/>',
+  lightbulb: '<path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  rocket: '<path d="M12 3c2.5 2 4 5 4 9l-4 4-4-4c0-4 1.5-7 4-9z"/><path d="M8 15l-3 3.5L8.5 18"/><path d="M16 15l3 3.5-3.5-.5"/><circle cx="12" cy="10" r="1.4" fill="currentColor" stroke="none"/>',
+  wand: '<path d="M5 19L18 6"/><path d="M15.5 3.5l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/><path d="M5 12.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4L3 14.5l1.4-.6z"/>',
+  percent: '<circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path d="M18 6L6 18"/>',
+  gauge: '<path d="M4 15a8 8 0 1 1 16 0"/><path d="M12 15l4-5.5"/><circle cx="12" cy="15" r="1.2" fill="currentColor" stroke="none"/>',
+  flag: '<path d="M6 3v18"/><path d="M6 4h11l-2.5 3.5L17 11H6"/>',
+  tag: '<path d="M12.5 3.5H6a1.5 1.5 0 0 0-1.5 1.5v6.5l9.5 9.5a1.5 1.5 0 0 0 2.1 0l4-4a1.5 1.5 0 0 0 0-2.1z"/><circle cx="8.3" cy="8.3" r="1.3" fill="currentColor" stroke="none"/>',
+  hash: '<path d="M9 3.5L7 20.5M17 3.5l-2 17M4 9h16M3.5 15h16"/>',
+};
+
+function Icon({ name, size = 16, color, className = "", style }) {
+  const markup = ICONS[name] || ICONS.circle;
+  return React.createElement("svg", {
+    width: size, height: size, viewBox: "0 0 24 24", fill: "none",
+    stroke: color || "currentColor", strokeWidth: 1.8,
+    strokeLinecap: "round", strokeLinejoin: "round",
+    className, style: { flexShrink: 0, display: "inline-block", ...style },
+    dangerouslySetInnerHTML: { __html: markup },
+  });
+}
+
+function mkIcon(name) {
+  const Comp = (props) => <Icon name={name} {...props} />;
+  Comp.displayName = name;
+  return Comp;
+}
+
+const LayoutDashboard = mkIcon("dashboard"), LayoutGrid = mkIcon("dashboard");
+const Compass = mkIcon("compass"), Briefcase = mkIcon("briefcase");
+const Sparkles = mkIcon("sparkles"), Bot = mkIcon("bot");
+const Calendar = mkIcon("calendar"), CalendarDays = mkIcon("calendar"), CalendarClock = mkIcon("calendarClock");
+const Bell = mkIcon("bell"), Users = mkIcon("users"), Users2 = mkIcon("users");
+const CreditCard = mkIcon("creditCard");
+const ChevronLeft = (p) => <Icon name="chevron" style={{ transform: "rotate(180deg)" }} {...p} />;
+const ChevronRight = mkIcon("chevron");
+const ChevronDown = (p) => <Icon name="chevron" style={{ transform: "rotate(90deg)" }} {...p} />;
+const ChevronUp = (p) => <Icon name="chevron" style={{ transform: "rotate(-90deg)" }} {...p} />;
+const ChevronsUpDown = mkIcon("chevronsUpDown");
+const Search = mkIcon("search"), Sun = mkIcon("sun"), Moon = mkIcon("moon");
+const Menu = mkIcon("menu"), X = mkIcon("x"), Plus = mkIcon("plus"), PlusCircle = mkIcon("plusCircle");
+const Check = mkIcon("check"), CheckSquare = mkIcon("checkSquare");
+const CheckCircle2 = mkIcon("checkCircle"), BadgeCheck = mkIcon("checkCircle"), XCircle = (p) => <Icon name="x" {...p} />;
+const Clock = mkIcon("clock"), FileText = mkIcon("fileText"), FileCheck2 = mkIcon("fileText"), FileClock = mkIcon("fileText");
+const Wallet = mkIcon("wallet"), Image = mkIcon("image"), History = mkIcon("history");
+const MapPin = mkIcon("mapPin"), ExternalLink = mkIcon("externalLink"), Filter = mkIcon("filter");
+const TrendingUp = mkIcon("trend"), TrendingDown = (p) => <Icon name="trend" style={{ transform: "scaleY(-1)" }} {...p} />;
+const AlertCircle = mkIcon("alertCircle"), AlertTriangle = mkIcon("alertCircle");
+const Star = mkIcon("star"), Award = mkIcon("award"), Target = mkIcon("target");
+const DollarSign = mkIcon("dollar"), Send = mkIcon("send"), MoreHorizontal = mkIcon("moreHorizontal");
+const Edit = mkIcon("edit"), PenTool = mkIcon("edit"), Trash2 = mkIcon("trash");
+const UserPlus = mkIcon("userPlus"), Shield = mkIcon("shield"), ShieldCheck = mkIcon("shieldCheck"), ShieldAlert = mkIcon("shieldAlert");
+const Mail = mkIcon("mail"), Phone = mkIcon("phone");
+const ArrowUpRight = mkIcon("arrowUpRight"), ArrowRight = mkIcon("arrowRight");
+const Zap = mkIcon("sparkles"), BookOpen = mkIcon("bookOpen"), Scale = mkIcon("scale"), Calculator = mkIcon("calculator");
+const BarChart3 = mkIcon("barChart"), Settings = mkIcon("settings"), LogOut = mkIcon("logOut");
+const Building2 = mkIcon("building"), Globe = mkIcon("globe"), Layers = mkIcon("layers"), FolderOpen = mkIcon("folder");
+const GripVertical = mkIcon("grip"), RefreshCw = mkIcon("refresh"), Download = mkIcon("download"), Upload = mkIcon("upload");
+const Link2 = mkIcon("link"), MessageSquare = mkIcon("messageSquare"), Circle = mkIcon("circle");
+const ListChecks = mkIcon("listChecks"), ClipboardList = mkIcon("clipboardList");
+const Info = mkIcon("info"), Paperclip = mkIcon("paperclip"), Eye = mkIcon("eye"), HelpCircle = mkIcon("helpCircle");
+const Lightbulb = mkIcon("lightbulb"), Rocket = mkIcon("rocket"), Wand2 = mkIcon("wand");
+const Percent = mkIcon("percent"), Gauge = mkIcon("gauge"), Flag = mkIcon("flag"), Tag = mkIcon("tag"), Hash = mkIcon("hash");
+
+/* ---------------------------------------------------------------------- */
+/* MOCK DATA                                                               */
+/* ---------------------------------------------------------------------- */
+
+const OPPORTUNITIES = [
+  { id: "op1", nombre: "Reto de Innovación Abierta para Agroindustria 2026", entidad: "MinCiencias", pais: "Colombia", categoria: "Innovación", tipoFinanciacion: "Cofinanciación", montoMax: 320000000, moneda: "COP", apertura: "2026-06-01", cierre: "2026-08-30", estado: "Abierta", elegibilidad: "Alta", area: "Agricultura", enlace: "https://minciencias.gov.co" },
+  { id: "op2", nombre: "D-Prize Challenge 2026 — Acceso a salud", entidad: "D-Prize", pais: "Global", categoria: "Emprendimiento social", tipoFinanciacion: "Capital semilla no reembolsable", montoMax: 20000, moneda: "USD", apertura: "2026-05-01", cierre: "2026-09-15", estado: "Abierta", elegibilidad: "Media", area: "Salud", enlace: "https://dprize.org" },
+  { id: "op3", nombre: "Fondo BID Lab de Innovación Climática", entidad: "BID Lab", pais: "Regional (LatAm)", categoria: "Medio Ambiente", tipoFinanciacion: "Donación", montoMax: 150000, moneda: "USD", apertura: "2026-04-10", cierre: "2026-08-12", estado: "Cierra pronto", elegibilidad: "Alta", area: "Medio Ambiente", enlace: "https://bidlab.org" },
+  { id: "op4", nombre: "Becas de Investigación Doctoral en IA Aplicada", entidad: "Fulbright — Colciencias", pais: "Colombia", categoria: "Becas", tipoFinanciacion: "Beca completa", montoMax: 65000, moneda: "USD", apertura: "2026-03-01", cierre: "2026-10-01", estado: "Abierta", elegibilidad: "Media", area: "Educación", enlace: "https://fulbright.org.co" },
+  { id: "op5", nombre: "Convocatoria de Turismo Sostenible y Cultura", entidad: "Ministerio de Comercio, Industria y Turismo", pais: "Colombia", categoria: "Turismo", tipoFinanciacion: "Cofinanciación", montoMax: 90000000, moneda: "COP", apertura: "2026-07-01", cierre: "2026-11-15", estado: "Próxima", elegibilidad: "Alta", area: "Turismo", enlace: "https://mincit.gov.co" },
+  { id: "op6", nombre: "Energías Renovables para Comunidades Rurales", entidad: "GIZ Colombia", pais: "Colombia", categoria: "Energía", tipoFinanciacion: "Donación", montoMax: 110000, moneda: "USD", apertura: "2026-02-15", cierre: "2026-08-05", estado: "Cierra pronto", elegibilidad: "Media", area: "Energía", enlace: "https://giz.de" },
+];
+
+const TEAM_POOL = [
+  { id: "u1", nombre: "Eric Fonseca", org: "Nubeletech", cargo: "Director de Proyectos", correo: "eric@nubeletech.co", rol: "Administrador" },
+  { id: "u2", nombre: "Ana Ruiz", org: "Nubeletech", cargo: "Investigadora principal", correo: "ana@nubeletech.co", rol: "Investigador" },
+  { id: "u3", nombre: "Camilo Prada", org: "Universidad Nacional", cargo: "Analista financiero", correo: "camilo@unal.edu.co", rol: "Consultor" },
+  { id: "u4", nombre: "Laura Gómez", org: "Nubeletech", cargo: "Coordinadora documental", correo: "laura@nubeletech.co", rol: "Investigador" },
+];
+
+const STATUS_FLOW = ["Investigación", "Preparando documentos", "Redactando propuesta", "En revisión", "Enviada", "En evaluación", "Solicitaron ajustes", "Aprobada", "Rechazada", "Finalizada"];
+
+function pct(n) { return Math.round(n * 100); }
+
+const CONVOCATORIAS = [
+  {
+    id: "c1", proyecto: "Lentes Inteligentes de Bajo Costo para Zonas Rurales", convocatoria: "D-Prize Challenge 2026 — Acceso a salud",
+    entidad: "D-Prize", pais: "Global", enlace: "https://dprize.org",
+    descripcion: "Tamizaje visual asistido por IA y distribución de gafas de lectura de bajo costo en zonas rurales con brecha de acceso a salud visual.",
+    apertura: "2026-05-01", cierre: "2026-09-15", resultados: "2026-10-30",
+    montoSolicitado: 20000, montoMax: 20000, moneda: "USD", responsable: "Eric Fonseca", equipo: ["u1", "u2"],
+    observaciones: "Priorizar el gap de formato de presupuesto detectado por el Agente Analista.",
+    estado: "Redactando propuesta", progreso: 0.62,
+    checklist: [
+      { id: "ch1", texto: "Carta de intención firmada", estado: "Completado" },
+      { id: "ch2", texto: "Presupuesto en formato D-Prize", estado: "En proceso" },
+      { id: "ch3", texto: "Hojas de vida del equipo (inglés)", estado: "Completado" },
+      { id: "ch4", texto: "Nota conceptual de 2 páginas", estado: "En proceso" },
+      { id: "ch5", texto: "Evidencia de piloto previo", estado: "Pendiente" },
+      { id: "ch6", texto: "Video de 90 segundos", estado: "Pendiente" },
+    ],
+    documentos: [
+      { id: "d1", nombre: "Cámara de Comercio.pdf", categoria: "Cámara de Comercio", estado: "Aprobado" },
+      { id: "d2", nombre: "RUT_Nubeletech.pdf", categoria: "RUT", estado: "Aprobado" },
+      { id: "d3", nombre: "Estados financieros 2025.xlsx", categoria: "Estados financieros", estado: "En revisión" },
+      { id: "d4", nombre: "Presupuesto D-Prize v3.xlsx", categoria: "Presupuesto", estado: "En elaboración" },
+      { id: "d5", nombre: "Propuesta técnica.docx", categoria: "Propuesta técnica", estado: "En elaboración" },
+      { id: "d6", nombre: "CV Eric Fonseca (EN).pdf", categoria: "Hojas de vida", estado: "Aprobado" },
+    ],
+    tareas: [
+      { id: "t1", titulo: "Adaptar presupuesto al formato D-Prize", estado: "En proceso", prioridad: "Alta", responsable: "Camilo Prada", fecha: "2026-08-10" },
+      { id: "t2", titulo: "Redactar nota conceptual (2 páginas)", estado: "En proceso", prioridad: "Alta", responsable: "Eric Fonseca", fecha: "2026-08-12" },
+      { id: "t3", titulo: "Grabar video de 90 segundos", estado: "Pendiente", prioridad: "Media", responsable: "Laura Gómez", fecha: "2026-08-20" },
+      { id: "t4", titulo: "Reunir evidencia del piloto en Boyacá", estado: "Pendiente", prioridad: "Media", responsable: "Ana Ruiz", fecha: "2026-08-18" },
+      { id: "t5", titulo: "Revisión final antes de envío", estado: "Pendiente", prioridad: "Alta", responsable: "Eric Fonseca", fecha: "2026-09-10" },
+      { id: "t6", titulo: "Firmar carta de intención", estado: "Finalizada", prioridad: "Alta", responsable: "Eric Fonseca", fecha: "2026-07-05" },
+    ],
+    presupuesto: [
+      { id: "b1", categoria: "Personal", concepto: "Coordinación técnica (4 meses)", cantidad: 4, valorUnitario: 1200, financiacion: 4800, contrapartida: 0 },
+      { id: "b2", categoria: "Equipos", concepto: "Kits de tamizaje visual", cantidad: 50, valorUnitario: 180, financiacion: 9000, contrapartida: 0 },
+      { id: "b3", categoria: "Logística", concepto: "Transporte a zonas rurales", cantidad: 1, valorUnitario: 2200, financiacion: 2200, contrapartida: 1800 },
+      { id: "b4", categoria: "Comunicaciones", concepto: "Producción de video y materiales", cantidad: 1, valorUnitario: 4000, financiacion: 4000, contrapartida: 0 },
+    ],
+    cronograma: [
+      { id: "cr1", actividad: "Diagnóstico de comunidades objetivo", fecha: "2026-07-01", entregable: "Informe de línea base", responsable: "Ana Ruiz", estado: "Completado" },
+      { id: "cr2", actividad: "Diseño del protocolo de tamizaje", fecha: "2026-07-20", entregable: "Protocolo v1", responsable: "Eric Fonseca", estado: "Completado" },
+      { id: "cr3", actividad: "Formulación de propuesta", fecha: "2026-08-25", entregable: "Nota conceptual", responsable: "Eric Fonseca", estado: "En curso" },
+      { id: "cr4", actividad: "Envío de postulación", fecha: "2026-09-15", entregable: "Paquete completo", responsable: "Eric Fonseca", estado: "Pendiente" },
+    ],
+    evidencias: [
+      { id: "ev1", tipo: "Foto", nombre: "Jornada piloto Boyacá.jpg" },
+      { id: "ev2", tipo: "Documento", nombre: "Resultados piloto 2025.pdf" },
+      { id: "ev3", tipo: "Enlace", nombre: "Cobertura de prensa local" },
+    ],
+    historial: [
+      { id: "h1", accion: "Documento agregado: Presupuesto D-Prize v3.xlsx", autor: "Camilo Prada", fecha: "2026-07-28 14:20" },
+      { id: "h2", accion: "Tarea finalizada: Firmar carta de intención", autor: "Eric Fonseca", fecha: "2026-07-05 09:10" },
+      { id: "h3", accion: "Cambio de estado: Investigación → Redactando propuesta", autor: "Eric Fonseca", fecha: "2026-07-18 11:00" },
+      { id: "h4", accion: "Nuevo integrante: Camilo Prada", autor: "Eric Fonseca", fecha: "2026-06-30 16:45" },
+    ],
+  },
+  {
+    id: "c2", proyecto: "Corredor de Innovación Agroindustrial del Oriente", convocatoria: "Reto de Innovación Abierta para Agroindustria 2026",
+    entidad: "MinCiencias", pais: "Colombia", enlace: "https://minciencias.gov.co",
+    descripcion: "Plataforma de trazabilidad y analítica para pequeños productores de cacao y café en el oriente del país.",
+    apertura: "2026-06-01", cierre: "2026-08-30", resultados: "2026-11-15",
+    montoSolicitado: 280000000, montoMax: 320000000, moneda: "COP", responsable: "Ana Ruiz", equipo: ["u2", "u3", "u4"],
+    observaciones: "Falta certificado de antecedentes de la representante legal.",
+    estado: "En revisión", progreso: 0.81,
+    checklist: [
+      { id: "ch1", texto: "RUT y Cámara de Comercio vigentes", estado: "Completado" },
+      { id: "ch2", texto: "Estados financieros certificados", estado: "Completado" },
+      { id: "ch3", texto: "Propuesta técnica completa", estado: "Completado" },
+      { id: "ch4", texto: "Certificado de antecedentes", estado: "Pendiente" },
+      { id: "ch5", texto: "Carta de compromiso de contrapartida", estado: "Completado" },
+    ],
+    documentos: [
+      { id: "d1", nombre: "RUT_2026.pdf", categoria: "RUT", estado: "Aprobado" },
+      { id: "d2", nombre: "Cámara de Comercio.pdf", categoria: "Cámara de Comercio", estado: "Aprobado" },
+      { id: "d3", nombre: "Propuesta técnica final.pdf", categoria: "Propuesta técnica", estado: "En revisión" },
+      { id: "d4", nombre: "Presupuesto detallado.xlsx", categoria: "Presupuesto", estado: "Aprobado" },
+    ],
+    tareas: [
+      { id: "t1", titulo: "Solicitar certificado de antecedentes", estado: "En proceso", prioridad: "Alta", responsable: "Laura Gómez", fecha: "2026-08-05" },
+      { id: "t2", titulo: "Revisión jurídica final", estado: "Pendiente", prioridad: "Alta", responsable: "Camilo Prada", fecha: "2026-08-08" },
+      { id: "t3", titulo: "Cargar propuesta en plataforma MinCiencias", estado: "Pendiente", prioridad: "Alta", responsable: "Ana Ruiz", fecha: "2026-08-29" },
+    ],
+    presupuesto: [
+      { id: "b1", categoria: "Personal", concepto: "Equipo técnico (8 meses)", cantidad: 8, valorUnitario: 9500000, financiacion: 76000000, contrapartida: 0 },
+      { id: "b2", categoria: "Equipos", concepto: "Sensores IoT y servidores", cantidad: 1, valorUnitario: 62000000, financiacion: 62000000, contrapartida: 8000000 },
+      { id: "b3", categoria: "Formación", concepto: "Talleres con productores", cantidad: 6, valorUnitario: 3500000, financiacion: 18000000, contrapartida: 3000000 },
+    ],
+    cronograma: [
+      { id: "cr1", actividad: "Levantamiento de línea base con productores", fecha: "2026-06-15", entregable: "Diagnóstico", responsable: "Ana Ruiz", estado: "Completado" },
+      { id: "cr2", actividad: "Redacción de propuesta técnica", fecha: "2026-07-25", entregable: "Propuesta v2", responsable: "Ana Ruiz", estado: "Completado" },
+      { id: "cr3", actividad: "Revisión jurídica y financiera", fecha: "2026-08-10", entregable: "Visto bueno legal", responsable: "Camilo Prada", estado: "En curso" },
+      { id: "cr4", actividad: "Radicación de la propuesta", fecha: "2026-08-30", entregable: "Confirmación de envío", responsable: "Ana Ruiz", estado: "Pendiente" },
+    ],
+    evidencias: [
+      { id: "ev1", tipo: "Foto", nombre: "Taller productores Boyacá.jpg" },
+      { id: "ev2", tipo: "Video", nombre: "Testimonios asociación cacaotera.mp4" },
+    ],
+    historial: [
+      { id: "h1", accion: "Cambio de estado: Redactando propuesta → En revisión", autor: "Ana Ruiz", fecha: "2026-07-26 10:30" },
+      { id: "h2", accion: "Comentario en Propuesta técnica final.pdf", autor: "Camilo Prada", fecha: "2026-07-27 15:05" },
+    ],
+  },
+  {
+    id: "c3", proyecto: "Ruta Cultural del Café — Turismo Comunitario", convocatoria: "Convocatoria de Turismo Sostenible y Cultura",
+    entidad: "Ministerio de Comercio, Industria y Turismo", pais: "Colombia", enlace: "https://mincit.gov.co",
+    descripcion: "Formalización de una ruta turística comunitaria alrededor de fincas cafeteras certificadas.",
+    apertura: "2026-07-01", cierre: "2026-11-15", resultados: "2027-01-20",
+    montoSolicitado: 60000000, montoMax: 90000000, moneda: "COP", responsable: "Laura Gómez", equipo: ["u4"],
+    observaciones: "Convocatoria aún no abre oficialmente el formulario.",
+    estado: "Investigación", progreso: 0.18,
+    checklist: [
+      { id: "ch1", texto: "Confirmar requisitos definitivos", estado: "En proceso" },
+      { id: "ch2", texto: "Mapear fincas participantes", estado: "Pendiente" },
+      { id: "ch3", texto: "Diseñar modelo de gobernanza comunitaria", estado: "Pendiente" },
+    ],
+    documentos: [{ id: "d1", nombre: "Términos de referencia (borrador).pdf", categoria: "Otros documentos", estado: "En revisión" }],
+    tareas: [{ id: "t1", titulo: "Mapear fincas cafeteras interesadas", estado: "Pendiente", prioridad: "Media", responsable: "Laura Gómez", fecha: "2026-08-15" }],
+    presupuesto: [{ id: "b1", categoria: "Formación", concepto: "Capacitación en servicio turístico", cantidad: 1, valorUnitario: 12000000, financiacion: 12000000, contrapartida: 2000000 }],
+    cronograma: [{ id: "cr1", actividad: "Mapeo de actores locales", fecha: "2026-08-01", entregable: "Directorio de fincas", responsable: "Laura Gómez", estado: "En curso" }],
+    evidencias: [],
+    historial: [{ id: "h1", accion: "Convocatoria agregada al espacio de trabajo", autor: "Laura Gómez", fecha: "2026-07-15 09:00" }],
+  },
+  {
+    id: "c4", proyecto: "Red Solar Comunitaria del Pacífico", convocatoria: "Energías Renovables para Comunidades Rurales",
+    entidad: "GIZ Colombia", pais: "Colombia", enlace: "https://giz.de",
+    descripcion: "Instalación de microrredes solares en 6 corregimientos sin acceso confiable a energía.",
+    apertura: "2026-02-15", cierre: "2026-08-05", resultados: "2026-09-30",
+    montoSolicitado: 95000, montoMax: 110000, moneda: "USD", responsable: "Eric Fonseca", equipo: ["u1", "u3"],
+    observaciones: "Postulación enviada, a la espera de resultados de evaluación técnica.",
+    estado: "En evaluación", progreso: 0.95,
+    checklist: [
+      { id: "ch1", texto: "Estudio de factibilidad técnica", estado: "Completado" },
+      { id: "ch2", texto: "Presupuesto detallado", estado: "Completado" },
+      { id: "ch3", texto: "Cartas de las comunidades", estado: "Completado" },
+      { id: "ch4", texto: "Plan de sostenibilidad a 5 años", estado: "Completado" },
+    ],
+    documentos: [
+      { id: "d1", nombre: "Estudio de factibilidad.pdf", categoria: "Anexos", estado: "Aprobado" },
+      { id: "d2", nombre: "Presupuesto GIZ.xlsx", categoria: "Presupuesto", estado: "Aprobado" },
+      { id: "d3", nombre: "Cartas comunitarias (6).zip", categoria: "Cartas", estado: "Aprobado" },
+    ],
+    tareas: [{ id: "t1", titulo: "Preparar presentación para panel técnico", estado: "Finalizada", prioridad: "Alta", responsable: "Eric Fonseca", fecha: "2026-07-10" }],
+    presupuesto: [
+      { id: "b1", categoria: "Equipos", concepto: "Paneles solares y baterías", cantidad: 6, valorUnitario: 12500, financiacion: 75000, contrapartida: 5000 },
+      { id: "b2", categoria: "Personal", concepto: "Ingeniero de instalación (6 meses)", cantidad: 6, valorUnitario: 2000, financiacion: 12000, contrapartida: 0 },
+      { id: "b3", categoria: "Logística", concepto: "Transporte fluvial de equipos", cantidad: 1, valorUnitario: 8000, financiacion: 8000, contrapartida: 2000 },
+    ],
+    cronograma: [
+      { id: "cr1", actividad: "Estudio técnico de sitios", fecha: "2026-03-20", entregable: "Estudio de factibilidad", responsable: "Eric Fonseca", estado: "Completado" },
+      { id: "cr2", actividad: "Envío de postulación", fecha: "2026-08-05", entregable: "Postulación completa", responsable: "Eric Fonseca", estado: "Completado" },
+      { id: "cr3", actividad: "Panel de evaluación técnica", fecha: "2026-09-05", entregable: "Retroalimentación GIZ", responsable: "Eric Fonseca", estado: "En curso" },
+    ],
+    evidencias: [
+      { id: "ev1", tipo: "Foto", nombre: "Visita técnica corregimientos.jpg" },
+      { id: "ev2", tipo: "Documento", nombre: "Estudio de factibilidad.pdf" },
+    ],
+    historial: [
+      { id: "h1", accion: "Cambio de estado: Enviada → En evaluación", autor: "Eric Fonseca", fecha: "2026-08-06 08:15" },
+      { id: "h2", accion: "Tarea finalizada: Preparar presentación para panel técnico", autor: "Eric Fonseca", fecha: "2026-07-10 17:40" },
+    ],
+  },
+];
+
+const AGENTS = [
+  { id: "a1", nombre: "Investigador", desc: "Rastrea antecedentes, estado del arte y contexto sectorial para tu proyecto.", icon: "bookOpen" },
+  { id: "a2", nombre: "Formulador", desc: "Redacta objetivos, metodología y actividades a partir de tus respuestas.", icon: "edit" },
+  { id: "a3", nombre: "Revisor", desc: "Detecta inconsistencias entre secciones antes de enviar la propuesta.", icon: "eye" },
+  { id: "a4", nombre: "Corrector de estilo", desc: "Ajusta redacción, tono y ortografía al estándar de cada entidad.", icon: "edit" },
+  { id: "a5", nombre: "Analista financiero", desc: "Construye y valida presupuestos según el formato exigido.", icon: "calculator" },
+  { id: "a6", nombre: "Analista jurídico", desc: "Revisa requisitos legales, cámaras de comercio y certificaciones.", icon: "scale" },
+  { id: "a7", nombre: "Evaluador de convocatorias", desc: "Califica la elegibilidad y competitividad frente a cada convocatoria.", icon: "checkCircle" },
+  { id: "a8", nombre: "Constructor de presupuestos", desc: "Arma presupuestos multi-categoría con contrapartidas automáticas.", icon: "wallet" },
+  { id: "a9", nombre: "Especialista en indicadores", desc: "Define indicadores de resultado e impacto medibles.", icon: "target" },
+  { id: "a10", nombre: "Especialista en riesgos", desc: "Construye la matriz de riesgos y planes de mitigación.", icon: "shieldAlert" },
+];
+
+const NOTIFICATIONS_SEED = [
+  { id: "n1", tipo: "Fecha límite", texto: "La convocatoria D-Prize Challenge cierra en 15 días.", fecha: "hace 2 h", leido: false },
+  { id: "n2", tipo: "Documento", texto: "Camilo Prada subió Presupuesto D-Prize v3.xlsx.", fecha: "hace 5 h", leido: false },
+  { id: "n3", tipo: "Estado", texto: "Corredor de Innovación Agroindustrial pasó a En revisión.", fecha: "ayer", leido: true },
+  { id: "n4", tipo: "Equipo", texto: "Laura Gómez comentó en Ruta Cultural del Café.", fecha: "hace 2 días", leido: true },
+  { id: "n5", tipo: "Sugerencia IA", texto: "3 nuevas convocatorias compatibles con tu perfil.", fecha: "hace 3 días", leido: true },
+];
+
+const USERS_TABLE = [
+  { ...TEAM_POOL[0], estado: "Activo" }, { ...TEAM_POOL[1], estado: "Activo" },
+  { ...TEAM_POOL[2], estado: "Activo" }, { ...TEAM_POOL[3], estado: "Invitado" },
+];
+
+const PLANS = [
+  { id: "trial", nombre: "Prueba gratuita", precio: "$0", periodo: "14 días", destacado: false, features: ["1 espacio de trabajo activo", "Copiloto IA (uso limitado)", "Hasta 3 convocatorias"] },
+  { id: "monthly", nombre: "Plan mensual", precio: "$29", periodo: "por mes", destacado: true, features: ["Convocatorias ilimitadas", "Copiloto IA sin límite", "Biblioteca de agentes completa", "Integración con calendario"] },
+  { id: "annual", nombre: "Plan anual", precio: "$290", periodo: "por año", destacado: false, features: ["Todo lo del plan mensual", "2 meses gratis", "Soporte prioritario", "Exportación avanzada"] },
+];
+
+/* ---------------------------------------------------------------------- */
+/* HELPERS                                                                 */
+/* ---------------------------------------------------------------------- */
+
+function formatCurrency(amount, currency) {
+  if (currency === "COP") return "COP " + amount.toLocaleString("es-CO");
+  return "US$ " + amount.toLocaleString("en-US");
+}
+const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+function formatDate(iso) {
+  const d = new Date(iso + "T00:00:00");
+  return `${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`;
+}
+const TODAY = new Date("2026-08-01T00:00:00");
+function daysUntil(iso) {
+  const target = new Date(iso + "T00:00:00");
+  return Math.round((target - TODAY) / (1000 * 60 * 60 * 24));
+}
+
+const STATUS_STYLE = {
+  "Investigación": "info", "Preparando documentos": "info", "Redactando propuesta": "warn",
+  "En revisión": "warn", "Enviada": "brand", "En evaluación": "brand", "Solicitaron ajustes": "warn",
+  "Aprobada": "success", "Rechazada": "danger", "Finalizada": "success",
+  "Abierta": "success", "Cierra pronto": "warn", "Próxima": "info",
+  "Pendiente": "info", "En proceso": "warn", "Completado": "success", "Aprobado": "success",
+  "En elaboración": "warn", "Alta": "danger", "Media": "warn", "Baja": "info",
+  "Activo": "success", "Invitado": "info", "En curso": "warn",
+};
+
+/* ---------------------------------------------------------------------- */
+/* PRIMITIVES                                                              */
+/* ---------------------------------------------------------------------- */
+
+function Badge({ label, tone = "info", size = "md" }) {
+  const t = useT();
+  const toneMap = {
+    success: [t.c.success, t.c.successSoft], danger: [t.c.danger, t.c.dangerSoft],
+    warn: [t.c.warn, t.c.warnSoft], info: [t.c.info, t.c.infoSoft],
+    brand: [t.c.brand, t.c.brandSoft], gold: [t.c.gold, t.c.goldSoft],
+    neutral: [t.c.textMuted, t.c.surfaceAlt],
+  };
+  const [fg, bg] = toneMap[tone] || toneMap.info;
+  return (
+    <span style={{ color: fg, background: bg }} className={`inline-flex items-center gap-1 rounded-full font-semibold whitespace-nowrap ${size === "sm" ? "text-[11px] px-2 py-0.5" : "text-xs px-2.5 py-1"}`}>
+      {label}
+    </span>
+  );
+}
+function StatusBadge({ status, size = "md" }) { return <Badge label={status} tone={STATUS_STYLE[status] || "neutral"} size={size} />; }
+
+function Card({ children, className = "", style = {}, onClick }) {
+  const t = useT();
+  return (
+    <div onClick={onClick} style={{ background: t.c.surface, border: `1px solid ${t.c.border}`, ...style }}
+      className={`rounded-2xl ${onClick ? "cursor-pointer transition hover:-translate-y-0.5 hover:shadow-lg" : ""} ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function ProgressRing({ value, size = 56, stroke = 6, label, tone = "brand" }) {
+  const t = useT();
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  const clamped = Math.max(0, Math.min(1, value));
+  const offset = c * (1 - clamped);
+  const color = t.c[tone] || t.c.brand;
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={t.c.borderStrong} strokeWidth={stroke} fill="none" opacity={0.5} />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={stroke} fill="none"
+          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" style={{ transition: "stroke-dashoffset 0.6s ease" }} />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center flex-col">
+        <span style={{ fontFamily: "var(--font-mono)", color: t.c.text }} className="font-semibold">
+          {label !== undefined ? label : `${pct(clamped)}%`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function IconBtn({ icon, onClick, active, title }) {
+  const t = useT();
+  return (
+    <button onClick={onClick} title={title}
+      style={{ background: active ? t.c.brandSoft : "transparent", color: active ? t.c.brand : t.c.textMuted, border: `1px solid ${active ? t.c.brand : "transparent"}` }}
+      className="h-9 w-9 rounded-lg flex items-center justify-center transition hover:opacity-80">
+      <Icon name={icon} size={17} />
+    </button>
+  );
+}
+
+function SectionTitle({ eyebrow, title, action }) {
+  const t = useT();
+  return (
+    <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
+      <div>
+        {eyebrow && <div style={{ color: t.c.brand, fontFamily: "var(--font-mono)" }} className="text-[11px] font-semibold tracking-widest uppercase mb-1">{eyebrow}</div>}
+        <h2 style={{ color: t.c.text, fontFamily: "var(--font-display)", textWrap: "balance" }} className="text-xl font-semibold">{title}</h2>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function Btn({ children, onClick, variant = "primary", size = "md", icon, full }) {
+  const t = useT();
+  const base = "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition active:scale-[0.98]";
+  const sizes = size === "sm" ? "text-xs px-3 py-1.5" : "text-sm px-4 py-2.5";
+  const styles = {
+    primary: { background: t.c.brand, color: "#fff", border: `1px solid ${t.c.brand}` },
+    gold: { background: t.c.gold, color: "#221703", border: `1px solid ${t.c.gold}` },
+    outline: { background: "transparent", color: t.c.text, border: `1px solid ${t.c.borderStrong}` },
+    ghost: { background: "transparent", color: t.c.textMuted, border: "1px solid transparent" },
+    danger: { background: "transparent", color: t.c.danger, border: `1px solid ${t.c.danger}` },
+  };
+  return (
+    <button onClick={onClick} style={{ ...styles[variant], width: full ? "100%" : undefined }} className={`${base} ${sizes} hover:opacity-90`}>
+      {icon && <Icon name={icon} size={size === "sm" ? 14 : 16} />}
+      {children}
+    </button>
+  );
+}
+
+function EmptyState({ icon, title, subtitle, action }) {
+  const t = useT();
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-14 px-6">
+      <div style={{ background: t.c.surfaceAlt, color: t.c.textFaint }} className="h-12 w-12 rounded-full flex items-center justify-center mb-4">
+        <Icon name={icon} size={22} />
+      </div>
+      <div style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold mb-1">{title}</div>
+      {subtitle && <div style={{ color: t.c.textMuted }} className="text-sm max-w-sm mb-4">{subtitle}</div>}
+      {action}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* SIMPLE BAR CHART — hand-built, single-series, hover tooltip             */
+/* ---------------------------------------------------------------------- */
+
+function SimpleBarChart({ data, valueKey, labelKey, color, textColor, gridColor, height = 220, formatValue }) {
+  const [hover, setHover] = useState(null);
+  const W = 640, H = height, padL = 6, padR = 6, padT = 12, padB = 28;
+  const max = Math.max(1, ...data.map((d) => d[valueKey]));
+  const niceMax = max * 1.15;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const gap = 14;
+  const bw = (plotW - gap * (data.length - 1)) / data.length;
+  const gridLines = [0, 0.25, 0.5, 0.75, 1];
+
+  return (
+    <div style={{ position: "relative", width: "100%" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" role="img" aria-label="Monto solicitado por proyecto">
+        {gridLines.map((g, i) => {
+          const y = padT + plotH * (1 - g);
+          return <line key={i} x1={padL} x2={W - padR} y1={y} y2={y} stroke={gridColor} strokeWidth="1" />;
+        })}
+        {data.map((d, i) => {
+          const x = padL + i * (bw + gap);
+          const h = Math.max(2, (d[valueKey] / niceMax) * plotH);
+          const y = padT + plotH - h;
+          const r = Math.min(4, bw / 2, h);
+          const path = `M${x},${padT + plotH} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + bw - r},${y} Q${x + bw},${y} ${x + bw},${y + r} L${x + bw},${padT + plotH} Z`;
+          const isHover = hover === i;
+          return (
+            <g key={i}>
+              <path d={path} fill={color} opacity={isHover ? 1 : 0.85}
+                onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} style={{ cursor: "pointer", transition: "opacity .15s" }} />
+              <rect x={x} y={padT} width={bw} height={plotH} fill="transparent"
+                onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} style={{ cursor: "pointer" }} />
+              <text x={x + bw / 2} y={H - 8} textAnchor="middle" fontSize="10.5" fill={textColor}>{d[labelKey]}</text>
+            </g>
+          );
+        })}
+      </svg>
+      {hover !== null && (
+        <div style={{
+          position: "absolute", left: `${((padL + hover * (bw + gap) + bw / 2) / W) * 100}%`,
+          top: 0, transform: "translate(-50%, -100%)", background: "var(--surface)", border: "1px solid var(--border)",
+          borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text)",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.12)", pointerEvents: "none", whiteSpace: "nowrap", zIndex: 5,
+        }}>
+          {formatValue ? formatValue(data[hover][valueKey]) : data[hover][valueKey]}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* NAVIGATION SHELL                                                        */
+/* ---------------------------------------------------------------------- */
+
+const NAV_ITEMS = [
+  { id: "dashboard", label: "Panel principal", icon: "dashboard" },
+  { id: "opportunities", label: "Oportunidades", icon: "compass" },
+  { id: "workspaces", label: "Mis convocatorias", icon: "briefcase" },
+  { id: "copilot", label: "Copiloto IA", icon: "sparkles" },
+  { id: "agents", label: "Agentes IA", icon: "bot" },
+  { id: "calendar", label: "Calendario", icon: "calendar" },
+  { id: "notifications", label: "Notificaciones", icon: "bell" },
+  { id: "users", label: "Equipo y usuarios", icon: "users" },
+  { id: "billing", label: "Plan y facturación", icon: "creditCard" },
+];
+
+function Sidebar({ view, setView, collapsed, setCollapsed, unreadCount, mobileOpen, setMobileOpen }) {
+  const t = useT();
+  return (
+    <aside style={{ background: t.c.sidebarBg, width: collapsed ? 76 : 248, borderRight: `1px solid ${t.c.border}` }}
+      className={`h-full flex-shrink-0 flex-col transition-all duration-200 overflow-hidden fixed md:static inset-y-0 left-0 z-40 ${mobileOpen ? "flex" : "hidden md:flex"}`}>
+      <div className="flex items-center gap-2.5 px-4 h-16 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ background: t.c.brand2 }} className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Icon name="layers" size={16} color="#fff" />
+        </div>
+        {!collapsed && <div style={{ fontFamily: "var(--font-display)" }} className="text-white font-semibold text-[15px] leading-none">Nubeletech <span style={{ color: t.c.gold }}>2.0</span></div>}
+        <button onClick={() => setMobileOpen(false)} className="md:hidden ml-auto text-white/70"><Icon name="x" size={18} /></button>
+      </div>
+      <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-0.5">
+        {NAV_ITEMS.map((item) => {
+          const active = view === item.id;
+          return (
+            <button key={item.id} onClick={() => { setView(item.id); setMobileOpen(false); }}
+              style={{ background: active ? t.c.sidebarActive : "transparent", color: active ? "#fff" : t.c.sidebarText }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition relative hover:text-white">
+              {active && <span style={{ background: t.c.gold }} className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full" />}
+              <Icon name={item.icon} size={17} className="flex-shrink-0" />
+              {!collapsed && <span className="truncate flex-1 text-left">{item.label}</span>}
+              {!collapsed && item.id === "notifications" && unreadCount > 0 && (
+                <span style={{ background: t.c.gold, color: "#221703" }} className="text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">{unreadCount}</span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+      <div className="p-2.5 flex-shrink-0 hidden md:block" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <button onClick={() => setCollapsed(!collapsed)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium hover:text-white transition" style={{ color: t.c.sidebarText }}>
+          <Icon name={collapsed ? "chevron" : "chevron"} size={17} style={{ transform: collapsed ? "none" : "rotate(180deg)" }} />
+          {!collapsed && <span>Contraer menú</span>}
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function Topbar({ title, subtitle, isDark, setIsDark, setView, onMenu }) {
+  const t = useT();
+  return (
+    <header style={{ background: t.c.surface, borderBottom: `1px solid ${t.c.border}` }} className="h-16 flex-shrink-0 flex items-center justify-between px-4 md:px-6 gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <button onClick={onMenu} className="md:hidden flex-shrink-0" style={{ color: t.c.textMuted }}><Icon name="menu" size={20} /></button>
+        <div className="min-w-0">
+          <div style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-[15px] truncate">{title}</div>
+          {subtitle && <div style={{ color: t.c.textFaint }} className="text-xs truncate hidden sm:block">{subtitle}</div>}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div style={{ background: t.c.surfaceAlt, border: `1px solid ${t.c.border}` }} className="hidden lg:flex items-center gap-2 rounded-lg px-3 py-2 w-64">
+          <Icon name="search" size={15} color={t.c.textFaint} />
+          <input placeholder="Buscar convocatorias, tareas, documentos…" style={{ color: t.c.text }} className="bg-transparent outline-none text-[13px] w-full placeholder:opacity-60" id="global-search" />
+        </div>
+        <IconBtn icon={isDark ? "sun" : "moon"} onClick={() => setIsDark(!isDark)} title="Cambiar tema" />
+        <IconBtn icon="bell" onClick={() => setView("notifications")} title="Notificaciones" />
+        <div style={{ background: t.c.brand }} className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">EF</div>
+      </div>
+    </header>
+  );
+}
+/* ---------------------------------------------------------------------- */
+/* DASHBOARD                                                               */
+/* ---------------------------------------------------------------------- */
+
+function useDashboardStats() {
+  return useMemo(() => {
+    const activas = CONVOCATORIAS.filter((c) => ["En revisión", "Enviada", "En evaluación", "Solicitaron ajustes", "Redactando propuesta", "Preparando documentos"].includes(c.estado)).length;
+    const aprobadas = CONVOCATORIAS.filter((c) => c.estado === "Aprobada").length;
+    const rechazadas = CONVOCATORIAS.filter((c) => c.estado === "Rechazada").length;
+    const preparacion = CONVOCATORIAS.filter((c) => ["Investigación", "Preparando documentos"].includes(c.estado)).length;
+    const enviadas = CONVOCATORIAS.filter((c) => ["Enviada", "En evaluación"].includes(c.estado)).length;
+    const montoSolicitadoUSD = CONVOCATORIAS.reduce((sum, c) => sum + (c.moneda === "USD" ? c.montoSolicitado : c.montoSolicitado / 4100), 0);
+    const documentosPendientes = CONVOCATORIAS.flatMap((c) => c.documentos).filter((d) => d.estado !== "Aprobado").length;
+    const tareasPendientes = CONVOCATORIAS.flatMap((c) => c.tareas).filter((t) => t.estado !== "Finalizada").length;
+    return { activas, aprobadas, rechazadas, preparacion, enviadas, montoSolicitadoUSD, documentosPendientes, tareasPendientes };
+  }, []);
+}
+
+function KpiCard({ icon, label, value, tone = "brand" }) {
+  const t = useT();
+  return (
+    <Card className="p-4">
+      <div style={{ background: t.c[tone + "Soft"] || t.c.brandSoft, color: t.c[tone] || t.c.brand }} className="h-9 w-9 rounded-xl flex items-center justify-center mb-3">
+        <Icon name={icon} size={17} />
+      </div>
+      <div style={{ color: t.c.text, fontFamily: "var(--font-mono)" }} className="text-2xl font-semibold leading-none mb-1.5">{value}</div>
+      <div style={{ color: t.c.textMuted }} className="text-[12.5px]">{label}</div>
+    </Card>
+  );
+}
+
+function MiniCalendar({ onOpenCalendar }) {
+  const t = useT();
+  const events = useMemo(() => {
+    const list = [];
+    CONVOCATORIAS.forEach((c) => list.push({ fecha: c.cierre, texto: `Cierre — ${c.proyecto}`, tono: "danger" }));
+    OPPORTUNITIES.forEach((o) => list.push({ fecha: o.cierre, texto: `Cierre — ${o.nombre}`, tono: "warn" }));
+    return list.filter((e) => daysUntil(e.fecha) >= 0).sort((a, b) => daysUntil(a.fecha) - daysUntil(b.fecha)).slice(0, 5);
+  }, []);
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Icon name="calendarClock" size={16} color={t.c.brand} />
+          <span style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm">Próximas fechas de cierre</span>
+        </div>
+        <button onClick={onOpenCalendar} style={{ color: t.c.brand }} className="text-xs font-semibold hover:underline">Ver calendario</button>
+      </div>
+      <div className="space-y-3">
+        {events.map((e, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div style={{ background: t.c[e.tono + "Soft"], color: t.c[e.tono], fontFamily: "var(--font-mono)" }} className="rounded-lg h-11 w-11 flex-shrink-0 flex flex-col items-center justify-center text-[11px] font-bold leading-none">
+              <span>{new Date(e.fecha + "T00:00:00").getDate()}</span>
+              <span className="text-[9px] uppercase">{MONTHS_ES[new Date(e.fecha + "T00:00:00").getMonth()]}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div style={{ color: t.c.text }} className="text-[13px] font-medium truncate">{e.texto}</div>
+              <div style={{ color: t.c.textFaint }} className="text-[11px]">en {daysUntil(e.fecha)} días</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function ActivityFeed() {
+  const t = useT();
+  const items = useMemo(() => CONVOCATORIAS.flatMap((c) => c.historial.map((h) => ({ ...h, proyecto: c.proyecto }))).slice(0, 6), []);
+  return (
+    <Card className="p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Icon name="history" size={16} color={t.c.brand} />
+        <span style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm">Actividad reciente</span>
+      </div>
+      <div className="space-y-4">
+        {items.map((it, idx) => (
+          <div key={it.id + idx} className="flex gap-3">
+            <div style={{ background: t.c.brand }} className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 mt-0.5">
+              {it.autor.split(" ").map((s) => s[0]).slice(0, 2).join("")}
+            </div>
+            <div className="min-w-0">
+              <div style={{ color: t.c.text }} className="text-[13px] leading-snug"><span className="font-semibold">{it.autor}</span> · {it.accion}</div>
+              <div style={{ color: t.c.textFaint }} className="text-[11px] mt-0.5">{it.proyecto} · {it.fecha}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function TasksPanel({ onOpenWorkspace }) {
+  const t = useT();
+  const pendingTasks = useMemo(() =>
+    CONVOCATORIAS.flatMap((c) => c.tareas.filter((tk) => tk.estado !== "Finalizada").map((tk) => ({ ...tk, proyecto: c.proyecto, cid: c.id })))
+      .sort((a, b) => daysUntil(a.fecha) - daysUntil(b.fecha)).slice(0, 5), []);
+  return (
+    <Card className="p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Icon name="listChecks" size={16} color={t.c.brand} />
+        <span style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm">Tareas pendientes</span>
+      </div>
+      <div className="space-y-2.5">
+        {pendingTasks.map((tk) => (
+          <div key={tk.id + tk.cid} onClick={() => onOpenWorkspace(tk.cid)} className="flex items-center gap-3 cursor-pointer group">
+            <div style={{ borderColor: t.c.borderStrong }} className="h-4 w-4 rounded border flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div style={{ color: t.c.text }} className="text-[13px] font-medium truncate group-hover:underline">{tk.titulo}</div>
+              <div style={{ color: t.c.textFaint }} className="text-[11px] truncate">{tk.proyecto}</div>
+            </div>
+            <Badge label={tk.prioridad} tone={STATUS_STYLE[tk.prioridad]} size="sm" />
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function DashboardView({ setView, openWorkspace }) {
+  const t = useT();
+  const s = useDashboardStats();
+  const chartData = CONVOCATORIAS.map((c) => ({ name: c.proyecto.split(" ").slice(0, 2).join(" "), solicitado: c.moneda === "USD" ? c.montoSolicitado : Math.round(c.montoSolicitado / 4100) }));
+  return (
+    <div className="space-y-6">
+      <SectionTitle eyebrow="Panel principal" title="Hola, Eric — así va tu ciclo de convocatorias" action={<Btn icon="plus" onClick={() => setView("opportunities")}>Agregar convocatoria</Btn>} />
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <KpiCard icon="sparkles" label="Convocatorias activas" value={s.activas} tone="brand" />
+        <KpiCard icon="checkCircle" label="Aprobadas" value={s.aprobadas} tone="success" />
+        <KpiCard icon="x" label="Rechazadas" value={s.rechazadas} tone="danger" />
+        <KpiCard icon="clock" label="En preparación" value={s.preparacion} tone="warn" />
+        <KpiCard icon="send" label="Enviadas" value={s.enviadas} tone="info" />
+        <KpiCard icon="clipboardList" label="Tareas pendientes" value={s.tareasPendientes} tone="gold" />
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <Card className="p-5 xl:col-span-2">
+          <div className="flex items-center gap-2 mb-1">
+            <Icon name="dollar" size={16} color={t.c.brand} />
+            <span style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm">Monto solicitado por proyecto</span>
+          </div>
+          <div style={{ color: t.c.textFaint }} className="text-xs mb-4">
+            Total: <span style={{ color: t.c.text, fontFamily: "var(--font-mono)" }} className="font-semibold">${Math.round(s.montoSolicitadoUSD).toLocaleString("en-US")}</span>
+            {"  ·  "}Documentos pendientes: <span style={{ color: t.c.text }} className="font-semibold">{s.documentosPendientes}</span>
+          </div>
+          <SimpleBarChart data={chartData} valueKey="solicitado" labelKey="name" color={t.c.brand} textColor={t.c.textFaint} gridColor={t.c.border} formatValue={(v) => "$" + v.toLocaleString("en-US")} />
+        </Card>
+        <MiniCalendar onOpenCalendar={() => setView("calendar")} />
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="xl:col-span-2"><ActivityFeed /></div>
+        <TasksPanel onOpenWorkspace={openWorkspace} />
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* OPORTUNIDADES                                                           */
+/* ---------------------------------------------------------------------- */
+
+const FILTER_GROUPS = {
+  pais: ["Colombia", "Global", "Regional (LatAm)"],
+  area: ["Agricultura", "Salud", "Medio Ambiente", "Educación", "Turismo", "Energía"],
+  categoria: ["Innovación", "Emprendimiento social", "Becas", "Medio Ambiente", "Turismo", "Energía"],
+};
+
+function FilterGroup({ title, options, selected, toggle }) {
+  const t = useT();
+  return (
+    <div className="mb-5">
+      <div style={{ color: t.c.textFaint, fontFamily: "var(--font-mono)" }} className="text-[10.5px] font-semibold uppercase tracking-widest mb-2">{title}</div>
+      <div className="space-y-1.5">
+        {options.map((o) => {
+          const active = selected.includes(o);
+          return (
+            <button key={o} onClick={() => toggle(o)} className="w-full flex items-center gap-2 text-left group">
+              <span style={{ borderColor: active ? t.c.brand : t.c.borderStrong, background: active ? t.c.brand : "transparent" }} className="h-4 w-4 rounded flex items-center justify-center flex-shrink-0 border transition">
+                {active && <Icon name="check" size={11} color="#fff" />}
+              </span>
+              <span style={{ color: active ? t.c.text : t.c.textMuted }} className="text-[13px] group-hover:opacity-80 truncate">{o}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OpportunityCard({ op, added, onAdd }) {
+  const t = useT();
+  return (
+    <Card className="p-5 flex flex-col">
+      <div className="flex items-start justify-between gap-3 mb-2.5">
+        <StatusBadge status={op.estado} size="sm" />
+        <span style={{ color: t.c.textFaint }} className="text-[11px] font-medium">{daysUntil(op.cierre)} días para cerrar</span>
+      </div>
+      <h3 style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-[15px] leading-snug mb-1.5">{op.nombre}</h3>
+      <div style={{ color: t.c.textMuted }} className="flex items-center gap-1.5 text-[12.5px] mb-3 flex-wrap">
+        <Icon name="building" size={13} /> {op.entidad} <span className="opacity-40">·</span> <Icon name="mapPin" size={13} /> {op.pais}
+      </div>
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        <Badge label={op.categoria} tone="brand" size="sm" />
+        <Badge label={op.tipoFinanciacion} tone="neutral" size="sm" />
+        <Badge label={`Elegibilidad ${op.elegibilidad}`} tone={op.elegibilidad === "Alta" ? "success" : "warn"} size="sm" />
+      </div>
+      <div style={{ borderTop: `1px solid ${t.c.border}` }} className="pt-3 mt-auto flex items-center justify-between gap-2">
+        <div>
+          <div style={{ color: t.c.textFaint }} className="text-[10.5px] uppercase tracking-wide font-semibold">Monto máx.</div>
+          <div style={{ color: t.c.text, fontFamily: "var(--font-mono)" }} className="text-sm font-semibold">{formatCurrency(op.montoMax, op.moneda)}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <a href={op.enlace} target="_blank" rel="noreferrer" style={{ color: t.c.textMuted }} className="h-8 w-8 rounded-lg flex items-center justify-center hover:opacity-70" title="Ver convocatoria oficial">
+            <Icon name="externalLink" size={15} />
+          </a>
+          {added ? <Btn variant="outline" size="sm" icon="checkCircle">Agregada</Btn> : <Btn variant="primary" size="sm" icon="plus" onClick={() => onAdd(op)}>Agregar</Btn>}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function OpportunitiesView({ addedIds, onAdd }) {
+  const t = useT();
+  const [query, setQuery] = useState("");
+  const [selPais, setSelPais] = useState([]);
+  const [selArea, setSelArea] = useState([]);
+  const [selCat, setSelCat] = useState([]);
+  const toggle = (setter, arr, val) => setter(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
+  const filtered = OPPORTUNITIES.filter((op) => {
+    if (query && !op.nombre.toLowerCase().includes(query.toLowerCase())) return false;
+    if (selPais.length && !selPais.includes(op.pais)) return false;
+    if (selArea.length && !selArea.includes(op.area)) return false;
+    if (selCat.length && !selCat.includes(op.categoria)) return false;
+    return true;
+  });
+  return (
+    <div>
+      <SectionTitle eyebrow="Descubrimiento" title="Oportunidades de financiación" />
+      <div style={{ background: t.c.surfaceAlt, border: `1px solid ${t.c.border}` }} className="flex items-center gap-2 rounded-xl px-4 py-3 mb-5">
+        <Icon name="search" size={16} color={t.c.textFaint} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por nombre, entidad o palabra clave…" style={{ color: t.c.text }} className="bg-transparent outline-none text-sm w-full placeholder:opacity-60" id="opp-search" />
+        <span style={{ color: t.c.textFaint }} className="text-xs flex-shrink-0">{filtered.length} resultados</span>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <Card className="p-5 lg:col-span-1 h-fit">
+          <div className="flex items-center gap-2 mb-4">
+            <Icon name="filter" size={15} color={t.c.brand} />
+            <span style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm">Filtros</span>
+          </div>
+          <FilterGroup title="País" options={FILTER_GROUPS.pais} selected={selPais} toggle={(v) => toggle(setSelPais, selPais, v)} />
+          <FilterGroup title="Área temática" options={FILTER_GROUPS.area} selected={selArea} toggle={(v) => toggle(setSelArea, selArea, v)} />
+          <FilterGroup title="Categoría" options={FILTER_GROUPS.categoria} selected={selCat} toggle={(v) => toggle(setSelCat, selCat, v)} />
+        </Card>
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-5">
+          {filtered.map((op) => <OpportunityCard key={op.id} op={op} added={addedIds.includes(op.id)} onAdd={onAdd} />)}
+          {filtered.length === 0 && <div className="md:col-span-2"><EmptyState icon="search" title="Sin resultados" subtitle="Ajusta tus filtros o intenta con otra palabra clave." /></div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* MIS CONVOCATORIAS (workspace list)                                      */
+/* ---------------------------------------------------------------------- */
+
+function WorkspaceCard({ c, onOpen }) {
+  const t = useT();
+  return (
+    <Card onClick={() => onOpen(c.id)} className="p-5 flex flex-col">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <StatusBadge status={c.estado} size="sm" />
+        <ProgressRing value={c.progreso} size={40} stroke={4.5} label={`${pct(c.progreso)}%`} />
+      </div>
+      <h3 style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-[15px] leading-snug mb-1">{c.proyecto}</h3>
+      <div style={{ color: t.c.textFaint }} className="text-[12px] mb-3">{c.convocatoria}</div>
+      <div style={{ color: t.c.textMuted }} className="text-[12.5px] flex items-center gap-1.5 mb-4 flex-wrap">
+        <Icon name="building" size={13} /> {c.entidad} <span className="opacity-40">·</span> <Icon name="clock" size={13} /> cierra {formatDate(c.cierre)}
+      </div>
+      <div style={{ borderTop: `1px solid ${t.c.border}` }} className="pt-3 mt-auto flex items-center justify-between gap-2">
+        <div style={{ color: t.c.text, fontFamily: "var(--font-mono)" }} className="text-sm font-semibold">{formatCurrency(c.montoSolicitado, c.moneda)}</div>
+        <div className="flex -space-x-2">
+          {c.equipo.slice(0, 3).map((uid) => {
+            const u = TEAM_POOL.find((x) => x.id === uid);
+            return <div key={uid} title={u?.nombre} style={{ background: t.c.brand2, borderColor: t.c.surface }} className="h-7 w-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white">{u?.nombre.split(" ").map((s) => s[0]).slice(0, 2).join("")}</div>;
+          })}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function WorkspaceListView({ convocatorias, onOpen, setView }) {
+  const [statusFilter, setStatusFilter] = useState("Todas");
+  const filtered = statusFilter === "Todas" ? convocatorias : convocatorias.filter((c) => c.estado === statusFilter);
+  const statuses = ["Todas", ...Array.from(new Set(convocatorias.map((c) => c.estado)))];
+  return (
+    <div>
+      <SectionTitle eyebrow="Espacios de trabajo" title="Mis convocatorias" action={<Btn icon="compass" variant="outline" onClick={() => setView("opportunities")}>Explorar oportunidades</Btn>} />
+      <div className="flex items-center gap-2 mb-5 flex-wrap">
+        {statuses.map((s) => <button key={s} onClick={() => setStatusFilter(s)}><Badge label={s} tone={statusFilter === s ? "brand" : "neutral"} /></button>)}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        {filtered.map((c) => <WorkspaceCard key={c.id} c={c} onOpen={onOpen} />)}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* WORKSPACE DETAIL — módulos de la convocatoria                           */
+/* ---------------------------------------------------------------------- */
+
+const MODULE_TABS = [
+  { id: "info", label: "Información general", icon: "info" },
+  { id: "cronograma", label: "Cronograma", icon: "calendarClock" },
+  { id: "documentos", label: "Documentos", icon: "fileText" },
+  { id: "checklist", label: "Checklist", icon: "checkSquare" },
+  { id: "equipo", label: "Equipo", icon: "users" },
+  { id: "tareas", label: "Tareas", icon: "dashboard" },
+  { id: "presupuesto", label: "Presupuesto", icon: "wallet" },
+  { id: "evidencias", label: "Evidencias", icon: "image" },
+  { id: "evaluacion", label: "Evaluación IA", icon: "gauge" },
+  { id: "historial", label: "Historial", icon: "history" },
+];
+
+function ModuleInfo({ c }) {
+  const t = useT();
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <Card className="p-5 lg:col-span-2">
+        <div style={{ color: t.c.textFaint }} className="text-[11px] font-semibold uppercase tracking-widest mb-2">Descripción</div>
+        <p style={{ color: t.c.text }} className="text-[14px] leading-relaxed mb-5">{c.descripcion}</p>
+        <div style={{ color: t.c.textFaint }} className="text-[11px] font-semibold uppercase tracking-widest mb-2">Observaciones</div>
+        <p style={{ color: t.c.textMuted }} className="text-[13.5px] leading-relaxed">{c.observaciones || "Sin observaciones registradas."}</p>
+      </Card>
+      <div className="space-y-5">
+        <Card className="p-5">
+          <div style={{ color: t.c.textFaint }} className="text-[11px] font-semibold uppercase tracking-widest mb-3">Fechas clave</div>
+          <div className="space-y-2.5 text-[13px]">
+            <div className="flex justify-between"><span style={{ color: t.c.textMuted }}>Apertura</span><span style={{ color: t.c.text }} className="font-medium">{formatDate(c.apertura)}</span></div>
+            <div className="flex justify-between"><span style={{ color: t.c.textMuted }}>Cierre</span><span style={{ color: t.c.text }} className="font-medium">{formatDate(c.cierre)}</span></div>
+            <div className="flex justify-between"><span style={{ color: t.c.textMuted }}>Resultados est.</span><span style={{ color: t.c.text }} className="font-medium">{formatDate(c.resultados)}</span></div>
+          </div>
+        </Card>
+        <Card className="p-5">
+          <div style={{ color: t.c.textFaint }} className="text-[11px] font-semibold uppercase tracking-widest mb-3">Financiación</div>
+          <div className="space-y-2.5 text-[13px]">
+            <div className="flex justify-between"><span style={{ color: t.c.textMuted }}>Solicitado</span><span style={{ color: t.c.text, fontFamily: "var(--font-mono)" }} className="font-semibold">{formatCurrency(c.montoSolicitado, c.moneda)}</span></div>
+            <div className="flex justify-between"><span style={{ color: t.c.textMuted }}>Monto máximo</span><span style={{ color: t.c.text, fontFamily: "var(--font-mono)" }}>{formatCurrency(c.montoMax, c.moneda)}</span></div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function ModuleCronograma({ c }) {
+  const t = useT();
+  return (
+    <Card className="p-5">
+      {c.cronograma.map((a, i) => (
+        <div key={a.id} className="flex gap-4">
+          <div className="flex flex-col items-center">
+            <div style={{ background: a.estado === "Completado" ? t.c.success : a.estado === "En curso" ? t.c.warn : t.c.borderStrong }} className="h-3 w-3 rounded-full mt-1.5 flex-shrink-0" />
+            {i < c.cronograma.length - 1 && <div style={{ background: t.c.border }} className="w-px flex-1 my-1" />}
+          </div>
+          <div className="pb-6 min-w-0 flex-1">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span style={{ color: t.c.text }} className="font-medium text-[13.5px]">{a.actividad}</span>
+              <StatusBadge status={a.estado === "Completado" ? "Completado" : a.estado === "En curso" ? "En curso" : "Pendiente"} size="sm" />
+            </div>
+            <div style={{ color: t.c.textFaint }} className="text-[12px] mt-1">{formatDate(a.fecha)} · Entregable: {a.entregable} · {a.responsable}</div>
+          </div>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+function ModuleDocumentos({ c }) {
+  const t = useT();
+  return (
+    <Card className="overflow-hidden">
+      <div className="overflow-x-auto">
+      <table className="w-full text-left">
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${t.c.border}`, color: t.c.textFaint }} className="text-[11px] uppercase tracking-wide">
+            <th className="py-3 px-5 font-semibold">Documento</th>
+            <th className="py-3 px-5 font-semibold">Categoría</th>
+            <th className="py-3 px-5 font-semibold">Estado</th>
+            <th className="py-3 px-5 font-semibold text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {c.documentos.map((d) => (
+            <tr key={d.id} style={{ borderBottom: `1px solid ${t.c.border}` }}>
+              <td className="py-3 px-5"><div className="flex items-center gap-2.5"><Icon name="fileText" size={15} color={t.c.textFaint} /><span style={{ color: t.c.text }} className="text-[13.5px] font-medium">{d.nombre}</span></div></td>
+              <td className="py-3 px-5"><span style={{ color: t.c.textMuted }} className="text-[13px]">{d.categoria}</span></td>
+              <td className="py-3 px-5"><StatusBadge status={d.estado} size="sm" /></td>
+              <td className="py-3 px-5 text-right"><button style={{ color: t.c.textFaint }} className="hover:opacity-70"><Icon name="moreHorizontal" size={16} /></button></td>
+            </tr>
+          ))}
+          {c.documentos.length === 0 && <tr><td colSpan={4}><EmptyState icon="folder" title="Sin documentos aún" subtitle="Sube el primer documento de esta convocatoria." /></td></tr>}
+        </tbody>
+      </table>
+      </div>
+    </Card>
+  );
+}
+
+function ModuleChecklist({ items, toggleItem }) {
+  const t = useT();
+  const done = items.filter((i) => i.estado === "Completado").length;
+  const progress = items.length ? done / items.length : 0;
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <div style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm">Requisitos de la convocatoria</div>
+          <div style={{ color: t.c.textFaint }} className="text-xs mt-0.5">{done} de {items.length} completados</div>
+        </div>
+        <ProgressRing value={progress} size={52} stroke={5} tone={progress === 1 ? "success" : "brand"} />
+      </div>
+      <div className="space-y-2">
+        {items.map((it) => (
+          <div key={it.id} style={{ borderColor: t.c.border }} className="flex items-center gap-3 p-3 rounded-xl border">
+            <button onClick={() => toggleItem(it.id)} style={{ borderColor: it.estado === "Completado" ? t.c.success : t.c.borderStrong, background: it.estado === "Completado" ? t.c.success : "transparent" }} className="h-5 w-5 rounded flex items-center justify-center flex-shrink-0 border">
+              {it.estado === "Completado" && <Icon name="check" size={13} color="#fff" />}
+            </button>
+            <span style={{ color: it.estado === "Completado" ? t.c.textFaint : t.c.text, textDecoration: it.estado === "Completado" ? "line-through" : "none" }} className="text-[13.5px] flex-1">{it.texto}</span>
+            <StatusBadge status={it.estado} size="sm" />
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function ModuleEquipo({ c }) {
+  const t = useT();
+  const miembros = c.equipo.map((id) => TEAM_POOL.find((u) => u.id === id)).filter(Boolean);
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {miembros.map((u) => (
+        <Card key={u.id} className="p-4 flex items-center gap-3.5">
+          <div style={{ background: t.c.brand2 }} className="h-11 w-11 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">{u.nombre.split(" ").map((s) => s[0]).slice(0, 2).join("")}</div>
+          <div className="min-w-0 flex-1">
+            <div style={{ color: t.c.text }} className="font-semibold text-[13.5px] truncate">{u.nombre}</div>
+            <div style={{ color: t.c.textFaint }} className="text-[12px] truncate">{u.cargo} · {u.org}</div>
+            <a href={`mailto:${u.correo}`} style={{ color: t.c.textMuted }} className="flex items-center gap-1 text-[11.5px] hover:opacity-70 mt-1.5"><Icon name="mail" size={11} />{u.correo}</a>
+          </div>
+          <Badge label={u.rol} tone="neutral" size="sm" />
+        </Card>
+      ))}
+      <Card className="p-4 flex items-center justify-center border-dashed" style={{ borderStyle: "dashed" }}>
+        <Btn variant="ghost" icon="userPlus" size="sm">Agregar integrante</Btn>
+      </Card>
+    </div>
+  );
+}
+
+function ModuleTareas({ tareas, moveTask }) {
+  const t = useT();
+  const cols = ["Pendiente", "En proceso", "Finalizada"];
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {cols.map((col) => {
+        const items = tareas.filter((tk) => tk.estado === col);
+        return (
+          <div key={col}>
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span style={{ color: t.c.text }} className="text-[13px] font-semibold">{col}</span>
+              <span style={{ background: t.c.surfaceAlt, color: t.c.textMuted }} className="text-[11px] font-semibold rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center">{items.length}</span>
+            </div>
+            <div style={{ background: t.c.surfaceAlt }} className="rounded-xl p-2.5 space-y-2.5 min-h-[120px]">
+              {items.map((tk) => (
+                <Card key={tk.id} className="p-3.5">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span style={{ color: t.c.text }} className="text-[13px] font-medium leading-snug">{tk.titulo}</span>
+                    <Badge label={tk.prioridad} tone={STATUS_STYLE[tk.prioridad]} size="sm" />
+                  </div>
+                  <div style={{ color: t.c.textFaint }} className="flex items-center gap-1.5 text-[11.5px] mb-3"><Icon name="clock" size={11} /> {formatDate(tk.fecha)}</div>
+                  <div className="flex items-center justify-between">
+                    <div style={{ background: t.c.brand2 }} className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white">{tk.responsable.split(" ").map((s) => s[0]).slice(0, 2).join("")}</div>
+                    <div className="flex gap-1">
+                      {col !== "Pendiente" && <button onClick={() => moveTask(tk.id, -1)} title="Regresar" style={{ color: t.c.textFaint }} className="h-6 w-6 rounded flex items-center justify-center hover:opacity-70"><Icon name="chevron" size={14} style={{ transform: "rotate(180deg)" }} /></button>}
+                      {col !== "Finalizada" && <button onClick={() => moveTask(tk.id, 1)} title="Avanzar" style={{ color: t.c.brand }} className="h-6 w-6 rounded flex items-center justify-center hover:opacity-70"><Icon name="chevron" size={14} /></button>}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ModulePresupuesto({ items }) {
+  const t = useT();
+  const totalFin = items.reduce((s, i) => s + i.financiacion, 0);
+  const totalContra = items.reduce((s, i) => s + i.contrapartida, 0);
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="p-4"><div style={{ color: t.c.textFaint }} className="text-[11px] uppercase font-semibold tracking-wide mb-1.5">Total solicitado</div><div style={{ color: t.c.text, fontFamily: "var(--font-mono)" }} className="text-xl font-semibold">${totalFin.toLocaleString("en-US")}</div></Card>
+        <Card className="p-4"><div style={{ color: t.c.textFaint }} className="text-[11px] uppercase font-semibold tracking-wide mb-1.5">Total contrapartida</div><div style={{ color: t.c.text, fontFamily: "var(--font-mono)" }} className="text-xl font-semibold">${totalContra.toLocaleString("en-US")}</div></Card>
+        <Card className="p-4" style={{ background: t.c.brandSoft, border: `1px solid ${t.c.brand}` }}><div style={{ color: t.c.brand }} className="text-[11px] uppercase font-semibold tracking-wide mb-1.5">Total general</div><div style={{ color: t.c.brand, fontFamily: "var(--font-mono)" }} className="text-xl font-semibold">${(totalFin + totalContra).toLocaleString("en-US")}</div></Card>
+      </div>
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${t.c.border}`, color: t.c.textFaint }} className="text-[11px] uppercase tracking-wide">
+              <th className="py-3 px-5 font-semibold">Categoría</th><th className="py-3 px-5 font-semibold">Concepto</th>
+              <th className="py-3 px-5 font-semibold text-right">Cant.</th><th className="py-3 px-5 font-semibold text-right">V. unitario</th>
+              <th className="py-3 px-5 font-semibold text-right">Financiación</th><th className="py-3 px-5 font-semibold text-right">Contrapartida</th>
+            </tr>
+          </thead>
+          <tbody style={{ fontFamily: "var(--font-mono)" }}>
+            {items.map((it) => (
+              <tr key={it.id} style={{ borderBottom: `1px solid ${t.c.border}` }}>
+                <td className="py-3 px-5"><Badge label={it.categoria} tone="neutral" size="sm" /></td>
+                <td className="py-3 px-5" style={{ color: t.c.text, fontFamily: "var(--font-body)" }}>{it.concepto}</td>
+                <td className="py-3 px-5 text-right" style={{ color: t.c.textMuted }}>{it.cantidad}</td>
+                <td className="py-3 px-5 text-right" style={{ color: t.c.textMuted }}>${it.valorUnitario.toLocaleString("en-US")}</td>
+                <td className="py-3 px-5 text-right font-semibold" style={{ color: t.c.text }}>${it.financiacion.toLocaleString("en-US")}</td>
+                <td className="py-3 px-5 text-right" style={{ color: t.c.textMuted }}>${it.contrapartida.toLocaleString("en-US")}</td>
+              </tr>
+            ))}
+            {items.length === 0 && <tr><td colSpan={6}><EmptyState icon="wallet" title="Presupuesto vacío" subtitle="Aún no se han agregado ítems a este presupuesto." /></td></tr>}
+          </tbody>
+        </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function ModuleEvidencias({ evidencias }) {
+  const t = useT();
+  const iconFor = { Foto: "image", Video: "image", Documento: "fileText", Enlace: "link" };
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {evidencias.map((ev) => (
+        <Card key={ev.id} className="p-4 flex items-center gap-3">
+          <div style={{ background: t.c.surfaceAlt, color: t.c.brand }} className="h-11 w-11 rounded-lg flex items-center justify-center flex-shrink-0"><Icon name={iconFor[ev.tipo] || "fileText"} size={18} /></div>
+          <div className="min-w-0"><div style={{ color: t.c.text }} className="text-[13px] font-medium truncate">{ev.nombre}</div><div style={{ color: t.c.textFaint }} className="text-[11.5px]">{ev.tipo}</div></div>
+        </Card>
+      ))}
+      <Card className="p-4 flex items-center justify-center" style={{ borderStyle: "dashed" }}><Btn variant="ghost" icon="upload" size="sm">Subir evidencia</Btn></Card>
+      {evidencias.length === 0 && <div className="md:col-span-3"><EmptyState icon="image" title="Sin evidencias" subtitle="Asocia fotos, videos o documentos a las actividades del proyecto." /></div>}
+    </div>
+  );
+}
+
+function ModuleHistorial({ historial }) {
+  const t = useT();
+  return (
+    <Card className="p-5">
+      <div className="space-y-4">
+        {historial.map((h) => (
+          <div key={h.id} className="flex gap-3">
+            <div style={{ background: t.c.surfaceAlt, color: t.c.brand }} className="h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0"><Icon name="history" size={13} /></div>
+            <div><div style={{ color: t.c.text }} className="text-[13px]"><span className="font-semibold">{h.autor}</span> — {h.accion}</div><div style={{ color: t.c.textFaint }} className="text-[11px] mt-0.5">{h.fecha}</div></div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function evaluationFor(c) {
+  const score = Math.round(c.progreso * 92 + (c.documentos.filter((d) => d.estado === "Aprobado").length * 1.5));
+  const clamped = Math.min(98, Math.max(35, score));
+  return {
+    score: clamped,
+    cumplimiento: Math.round((c.checklist.filter((i) => i.estado === "Completado").length / (c.checklist.length || 1)) * 100),
+    faltantes: c.documentos.filter((d) => d.estado !== "Aprobado").map((d) => d.nombre),
+    fortalezas: ["Equipo con experiencia previa en convocatorias similares", "Presupuesto coherente con el monto máximo financiable", "Evidencia de piloto o antecedentes verificables"],
+    debilidades: ["Falta evidencia cuantitativa de impacto a 12 meses", "El cronograma tiene poco margen antes del cierre"],
+    riesgos: [{ texto: "Cierre próximo con documentos aún en elaboración", nivel: "Alta" }, { texto: "Dependencia de un solo proveedor para equipos", nivel: "Media" }],
+    recomendaciones: ["Adelantar la revisión jurídica al menos 10 días antes del cierre", "Incluir una carta de respaldo institucional adicional"],
+    probabilidad: clamped >= 80 ? "Alta" : clamped >= 55 ? "Media" : "Baja",
+  };
+}
+
+function ModuleEvaluacion({ c }) {
+  const t = useT();
+  const ev = useMemo(() => evaluationFor(c), [c]);
+  return (
+    <div className="space-y-5">
+      <Card className="p-6 flex flex-col md:flex-row items-center gap-6">
+        <ProgressRing value={ev.score / 100} size={104} stroke={9} tone={ev.score >= 80 ? "success" : ev.score >= 55 ? "warn" : "danger"} label={ev.score} />
+        <div className="flex-1">
+          <div style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-base mb-1">Nivel de competitividad estimado</div>
+          <div style={{ color: t.c.textMuted }} className="text-[13.5px] mb-3">Evaluación generada por el Copiloto IA a partir de checklist, documentos y presupuesto.</div>
+          <div className="flex flex-wrap gap-4">
+            <div><div style={{ color: t.c.textFaint }} className="text-[11px] uppercase font-semibold">Cumplimiento de requisitos</div><div style={{ color: t.c.text }} className="font-semibold text-sm">{ev.cumplimiento}%</div></div>
+            <div><div style={{ color: t.c.textFaint }} className="text-[11px] uppercase font-semibold">Probabilidad estimada de éxito</div><Badge label={ev.probabilidad} tone={ev.probabilidad === "Alta" ? "success" : ev.probabilidad === "Media" ? "warn" : "danger"} /></div>
+          </div>
+        </div>
+      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <Card className="p-5"><div style={{ color: t.c.success }} className="flex items-center gap-2 text-sm font-semibold mb-3"><Icon name="checkCircle" size={15} /> Fortalezas</div><ul className="space-y-2">{ev.fortalezas.map((f, i) => <li key={i} style={{ color: t.c.textMuted }} className="text-[13px] flex gap-2"><span style={{ color: t.c.success }}>—</span>{f}</li>)}</ul></Card>
+        <Card className="p-5"><div style={{ color: t.c.danger }} className="flex items-center gap-2 text-sm font-semibold mb-3"><Icon name="alertCircle" size={15} /> Debilidades</div><ul className="space-y-2">{ev.debilidades.map((f, i) => <li key={i} style={{ color: t.c.textMuted }} className="text-[13px] flex gap-2"><span style={{ color: t.c.danger }}>—</span>{f}</li>)}</ul></Card>
+      </div>
+      <Card className="p-5">
+        <div style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm mb-3">Documentos faltantes</div>
+        {ev.faltantes.length === 0 ? <div style={{ color: t.c.success }} className="text-[13px] flex items-center gap-2"><Icon name="checkCircle" size={15} /> Todos los documentos requeridos están aprobados.</div> : <div className="flex flex-wrap gap-2">{ev.faltantes.map((f, i) => <Badge key={i} label={f} tone="warn" size="sm" />)}</div>}
+      </Card>
+      <Card className="p-5">
+        <div style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm mb-3">Matriz de riesgos</div>
+        <div className="space-y-2">{ev.riesgos.map((r, i) => <div key={i} style={{ borderColor: t.c.border }} className="flex items-center justify-between p-3 rounded-lg border gap-3"><span style={{ color: t.c.text }} className="text-[13px]">{r.texto}</span><Badge label={r.nivel} tone={STATUS_STYLE[r.nivel]} size="sm" /></div>)}</div>
+      </Card>
+      <Card className="p-5" style={{ background: t.c.goldSoft, border: `1px solid ${t.c.gold}` }}>
+        <div style={{ color: t.c.gold }} className="flex items-center gap-2 font-semibold text-sm mb-3"><Icon name="lightbulb" size={15} /> Recomendaciones del Copiloto</div>
+        <ul className="space-y-2">{ev.recomendaciones.map((r, i) => <li key={i} style={{ color: t.c.text }} className="text-[13px] flex gap-2"><span>—</span>{r}</li>)}</ul>
+      </Card>
+    </div>
+  );
+}
+
+function WorkspaceDetailView({ convocatoria, onBack }) {
+  const t = useT();
+  const [tab, setTab] = useState("info");
+  const [checklist, setChecklist] = useState(convocatoria.checklist);
+  const [tareas, setTareas] = useState(convocatoria.tareas);
+  const [estado, setEstado] = useState(convocatoria.estado);
+
+  useEffect(() => { setChecklist(convocatoria.checklist); setTareas(convocatoria.tareas); setEstado(convocatoria.estado); setTab("info"); }, [convocatoria.id]);
+
+  const toggleItem = (id) => setChecklist((prev) => prev.map((it) => (it.id === id ? { ...it, estado: it.estado === "Completado" ? "Pendiente" : "Completado" } : it)));
+  const moveTask = (id, dir) => {
+    const order = ["Pendiente", "En proceso", "Finalizada"];
+    setTareas((prev) => prev.map((tk) => {
+      if (tk.id !== id) return tk;
+      const idx = order.indexOf(tk.estado);
+      return { ...tk, estado: order[Math.max(0, Math.min(order.length - 1, idx + dir))] };
+    }));
+  };
+  const liveProgress = convocatoria.progreso;
+
+  return (
+    <div>
+      <button onClick={onBack} style={{ color: t.c.textMuted }} className="flex items-center gap-1.5 text-[13px] font-medium mb-4 hover:opacity-70"><Icon name="chevron" size={15} style={{ transform: "rotate(180deg)" }} /> Mis convocatorias</button>
+      <Card className="p-6 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-6 justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-2 flex-wrap"><Badge label={convocatoria.pais} tone="neutral" size="sm" /><span style={{ color: t.c.textFaint }} className="text-xs">{convocatoria.entidad}</span></div>
+            <h1 style={{ color: t.c.text, fontFamily: "var(--font-display)", textWrap: "balance" }} className="text-xl md:text-2xl font-semibold mb-1">{convocatoria.proyecto}</h1>
+            <div style={{ color: t.c.textMuted }} className="text-[13px] mb-4">{convocatoria.convocatoria}</div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
+              <div className="flex items-center gap-1.5" style={{ color: t.c.textMuted }}><Icon name="clock" size={13} /> Cierra {formatDate(convocatoria.cierre)}</div>
+              <div className="flex items-center gap-1.5" style={{ color: t.c.textMuted }}><Icon name="dollar" size={13} /> {formatCurrency(convocatoria.montoSolicitado, convocatoria.moneda)}</div>
+              <div className="flex items-center gap-1.5" style={{ color: t.c.textMuted }}><Icon name="userPlus" size={13} /> {convocatoria.responsable}</div>
+              <select value={estado} onChange={(e) => setEstado(e.target.value)} id="workspace-status" style={{ color: t.c.text, background: t.c.surfaceAlt, border: `1px solid ${t.c.border}` }} className="text-[12.5px] font-semibold rounded-lg px-2.5 py-1.5 outline-none">
+                {STATUS_FLOW.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-5 flex-shrink-0">
+            <div className="text-center"><ProgressRing value={liveProgress} size={68} stroke={6} tone={liveProgress === 1 ? "success" : "brand"} /><div style={{ color: t.c.textFaint }} className="text-[10.5px] font-semibold uppercase mt-1.5">Progreso</div></div>
+          </div>
+        </div>
+      </Card>
+      <div style={{ borderBottom: `1px solid ${t.c.border}` }} className="flex items-center gap-1 mb-6 overflow-x-auto pb-px">
+        {MODULE_TABS.map((mt) => {
+          const active = tab === mt.id;
+          return <button key={mt.id} onClick={() => setTab(mt.id)} style={{ color: active ? t.c.brand : t.c.textMuted, borderColor: active ? t.c.brand : "transparent" }} className="flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-medium border-b-2 whitespace-nowrap transition hover:opacity-80 flex-shrink-0"><Icon name={mt.icon} size={14} /> {mt.label}</button>;
+        })}
+      </div>
+      {tab === "info" && <ModuleInfo c={convocatoria} />}
+      {tab === "cronograma" && <ModuleCronograma c={convocatoria} />}
+      {tab === "documentos" && <ModuleDocumentos c={convocatoria} />}
+      {tab === "checklist" && <ModuleChecklist items={checklist} toggleItem={toggleItem} />}
+      {tab === "equipo" && <ModuleEquipo c={convocatoria} />}
+      {tab === "tareas" && <ModuleTareas tareas={tareas} moveTask={moveTask} />}
+      {tab === "presupuesto" && <ModulePresupuesto items={convocatoria.presupuesto} />}
+      {tab === "evidencias" && <ModuleEvidencias evidencias={convocatoria.evidencias} />}
+      {tab === "evaluacion" && <ModuleEvaluacion c={convocatoria} />}
+      {tab === "historial" && <ModuleHistorial historial={convocatoria.historial} />}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* COPILOTO INTELIGENTE (IA)                                               */
+/* ---------------------------------------------------------------------- */
+
+const COPILOT_SCRIPT = [
+  { pregunta: "¿Cuál es el problema que desea resolver con este proyecto?", respuesta: "En zonas rurales de Boyacá, más del 60% de los adultos mayores de 40 años tiene presbicia sin corregir, lo que reduce su productividad agrícola y artesanal.", seccion: { titulo: "Planteamiento del problema", texto: "El proyecto responde a una brecha crítica de acceso a salud visual en zonas rurales, donde más del 60% de los adultos mayores de 40 años presenta presbicia sin corregir, afectando directamente su productividad en actividades agrícolas y artesanales." } },
+  { pregunta: "¿Quiénes son los beneficiarios directos e indirectos?", respuesta: "Beneficiarios directos: 500 adultos mayores de 40 años en 6 corregimientos. Indirectos: sus núcleos familiares y las asociaciones productivas locales.", seccion: { titulo: "Beneficiarios", texto: "Se beneficiarán directamente 500 personas mayores de 40 años en 6 corregimientos rurales, junto con sus núcleos familiares y las asociaciones productivas a las que pertenecen, de forma indirecta." } },
+  { pregunta: "¿Cuál es la innovación propuesta frente a soluciones existentes?", respuesta: "Tamizaje visual asistido por IA en campo, sin necesidad de optómetra presencial, con entrega inmediata de gafas de lectura calibradas.", seccion: { titulo: "Innovación", texto: "A diferencia de las brigadas de salud visual tradicionales, el proyecto introduce un protocolo de tamizaje asistido por inteligencia artificial que permite calibrar y entregar gafas de lectura en el mismo momento de la visita, sin depender de un optómetra presencial." } },
+  { pregunta: "¿Qué impacto espera generar en los primeros 12 meses?", respuesta: "Un incremento estimado del 22% en la productividad de tareas manuales de precisión entre los beneficiarios.", seccion: { titulo: "Impacto esperado", texto: "Se proyecta un incremento del 22% en la productividad de tareas manuales de precisión entre los beneficiarios durante los primeros 12 meses, medido mediante encuestas de línea base y seguimiento." } },
+  { pregunta: "¿Cuál será la metodología general del proyecto?", respuesta: "Cuatro fases: diagnóstico comunitario, tamizaje y entrega, formación de multiplicadores locales, y medición de impacto.", seccion: { titulo: "Metodología", texto: "El proyecto se ejecutará en cuatro fases: (1) diagnóstico comunitario y mapeo de beneficiarios, (2) jornadas de tamizaje visual y entrega de gafas, (3) formación de multiplicadores comunitarios para sostenibilidad, y (4) medición de impacto a los 6 y 12 meses." } },
+  { pregunta: "¿Qué presupuesto estima necesario y cómo se distribuye?", respuesta: "US$20.000 en total: kits de tamizaje, coordinación técnica, logística de transporte y producción de materiales de comunicación.", seccion: { titulo: "Presupuesto", texto: "El presupuesto total estimado es de US$20.000, distribuido entre kits de tamizaje visual, coordinación técnica durante 4 meses, logística de transporte a zonas rurales y producción de materiales de comunicación y evidencia." } },
+];
+
+function CopilotMessage({ role, text }) {
+  const t = useT();
+  const isAI = role === "ai";
+  return (
+    <div className={`flex gap-3 ${isAI ? "" : "flex-row-reverse"}`}>
+      <div style={{ background: isAI ? t.c.brand : t.c.gold }} className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 text-white">
+        {isAI ? <Icon name="sparkles" size={14} /> : <span className="text-[11px] font-bold">EF</span>}
+      </div>
+      <div style={{ background: isAI ? t.c.surfaceAlt : t.c.brand, color: isAI ? t.c.text : "#fff" }} className="rounded-2xl px-4 py-2.5 text-[13.5px] leading-relaxed max-w-[80%]">{text}</div>
+    </div>
+  );
+}
+
+function CopilotView() {
+  const t = useT();
+  const [step, setStep] = useState(0);
+  const [messages, setMessages] = useState([{ role: "ai", text: "Hola Eric — soy tu copiloto de formulación. Vamos a construir el proyecto \"Lentes Inteligentes de Bajo Costo\" juntos, paso a paso. " + COPILOT_SCRIPT[0].pregunta }]);
+  const [sections, setSections] = useState([]);
+  const [input, setInput] = useState("");
+  const finished = step >= COPILOT_SCRIPT.length;
+
+  const advance = () => {
+    if (finished) return;
+    const current = COPILOT_SCRIPT[step];
+    const userText = input.trim() || current.respuesta;
+    const nextMsgs = [...messages, { role: "user", text: userText }];
+    setSections((prev) => [...prev, current.seccion]);
+    const nextStep = step + 1;
+    if (nextStep < COPILOT_SCRIPT.length) nextMsgs.push({ role: "ai", text: "Perfecto, registrado. " + COPILOT_SCRIPT[nextStep].pregunta });
+    else nextMsgs.push({ role: "ai", text: "Con esto tengo lo esencial. Generé el resumen ejecutivo y las secciones principales del proyecto — puedes editarlas a la derecha, o pedirme que continúe con la matriz de riesgos y los indicadores." });
+    setMessages(nextMsgs); setStep(nextStep); setInput("");
+  };
+
+  return (
+    <div>
+      <SectionTitle eyebrow="Copiloto inteligente" title="Formulación guiada de proyecto" />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <Card className="flex flex-col h-[600px]">
+          <div style={{ borderBottom: `1px solid ${t.c.border}` }} className="px-5 py-4 flex items-center gap-2"><Icon name="bot" size={16} color={t.c.brand} /><span style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm">Consultor experto en convocatorias</span></div>
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {messages.map((m, i) => <CopilotMessage key={i} role={m.role} text={m.text} />)}
+            {finished && <div className="flex flex-wrap gap-2 pl-11"><Badge label="Nota conceptual lista" tone="success" size="sm" /><Badge label="Objetivos listos" tone="success" size="sm" /><Badge label="Metodología lista" tone="success" size="sm" /><Badge label="Matriz de riesgos (pendiente)" tone="neutral" size="sm" /></div>}
+          </div>
+          <div style={{ borderTop: `1px solid ${t.c.border}` }} className="p-4">
+            {!finished ? (
+              <div className="flex items-center gap-2">
+                <input id="copilot-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && advance()} placeholder={`Ej: ${COPILOT_SCRIPT[step].respuesta.slice(0, 46)}…`} style={{ background: t.c.surfaceAlt, border: `1px solid ${t.c.border}`, color: t.c.text }} className="flex-1 rounded-lg px-3.5 py-2.5 text-[13px] outline-none" />
+                <Btn icon="send" onClick={advance}>Enviar</Btn>
+              </div>
+            ) : <Btn icon="refresh" variant="outline" full onClick={() => { setStep(0); setMessages([messages[0]]); setSections([]); }}>Reiniciar formulación</Btn>}
+          </div>
+        </Card>
+        <Card className="p-5 h-[600px] overflow-y-auto">
+          <div className="flex items-center gap-2 mb-4"><Icon name="fileText" size={16} color={t.c.brand} /><span style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm">Documento generado en vivo</span></div>
+          {sections.length === 0 ? <EmptyState icon="wand" title="El documento aparecerá aquí" subtitle="Responde las preguntas del copiloto para construir cada sección automáticamente." /> : (
+            <div className="space-y-5">{sections.map((s, i) => (
+              <div key={i}>
+                <div style={{ color: t.c.brand, fontFamily: "var(--font-mono)" }} className="text-[11px] font-semibold uppercase tracking-widest mb-1.5">{String(i + 1).padStart(2, "0")} · {s.titulo}</div>
+                <p style={{ color: t.c.text }} className="text-[13.5px] leading-relaxed">{s.texto}</p>
+              </div>
+            ))}</div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* BIBLIOTECA DE AGENTES IA                                                */
+/* ---------------------------------------------------------------------- */
+
+function AgentsView() {
+  const t = useT();
+  return (
+    <div>
+      <SectionTitle eyebrow="Biblioteca" title="Agentes IA especializados" />
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {AGENTS.map((a) => (
+          <Card key={a.id} className="p-5">
+            <div style={{ background: t.c.brandSoft, color: t.c.brand }} className="h-10 w-10 rounded-xl flex items-center justify-center mb-4"><Icon name={a.icon} size={18} /></div>
+            <div style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-[14.5px] mb-1.5">{a.nombre}</div>
+            <div style={{ color: t.c.textMuted }} className="text-[13px] leading-relaxed mb-4">{a.desc}</div>
+            <Btn variant="outline" size="sm" icon="sparkles">Usar agente</Btn>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* CALENDARIO Y RECORDATORIOS                                              */
+/* ---------------------------------------------------------------------- */
+
+const WEEKDAYS_ES = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+function buildMonthGrid(year, month) {
+  const first = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startOffset = first.getDay();
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  return cells;
+}
+
+function CalendarView() {
+  const t = useT();
+  const [connected, setConnected] = useState(false);
+  const [reminders, setReminders] = useState({ "30 días antes": true, "15 días antes": true, "7 días antes": true, "3 días antes": false, "24 horas antes": true });
+  const year = 2026, month = 7;
+  const cells = buildMonthGrid(year, month);
+  const eventsByDay = useMemo(() => {
+    const map = {};
+    const push = (iso, tone) => { const d = new Date(iso + "T00:00:00"); if (d.getFullYear() === year && d.getMonth() === month) { map[d.getDate()] = map[d.getDate()] || []; map[d.getDate()].push(tone); } };
+    CONVOCATORIAS.forEach((c) => push(c.cierre, "danger"));
+    OPPORTUNITIES.forEach((o) => push(o.cierre, "warn"));
+    CONVOCATORIAS.forEach((c) => c.cronograma.forEach((a) => push(a.fecha, "brand")));
+    return map;
+  }, []);
+  return (
+    <div>
+      <SectionTitle eyebrow="Sincronización" title="Calendario y recordatorios" action={<Btn variant={connected ? "outline" : "primary"} icon={connected ? "checkCircle" : "calendar"} onClick={() => setConnected(!connected)}>{connected ? "Google Calendar conectado" : "Conectar Google Calendar"}</Btn>} />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <Card className="p-5 xl:col-span-2">
+          <div style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm mb-4">Agosto 2026</div>
+          <div className="grid grid-cols-7 gap-1.5 mb-1.5">{WEEKDAYS_ES.map((w) => <div key={w} style={{ color: t.c.textFaint }} className="text-center text-[10.5px] font-semibold uppercase py-1">{w}</div>)}</div>
+          <div className="grid grid-cols-7 gap-1.5">
+            {cells.map((d, i) => {
+              const evs = d ? eventsByDay[d] : null;
+              const isToday = d === 1;
+              return (
+                <div key={i} style={{ background: d ? (isToday ? t.c.brandSoft : t.c.surfaceAlt) : "transparent", border: isToday ? `1px solid ${t.c.brand}` : "none" }} className="rounded-lg p-1.5 min-h-[56px] text-left">
+                  {d && (<><div style={{ color: isToday ? t.c.brand : t.c.textMuted, fontFamily: "var(--font-mono)" }} className="text-[11px] font-semibold mb-1">{d}</div>
+                    <div className="flex flex-wrap gap-1">{(evs || []).slice(0, 3).map((tone, j) => <span key={j} style={{ background: t.c[tone] }} className="h-1.5 w-1.5 rounded-full inline-block" />)}</div></>)}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+        <div className="space-y-5">
+          <Card className="p-5">
+            <div style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-sm mb-3">Recibir avisos</div>
+            <div className="space-y-2.5">
+              {Object.keys(reminders).map((r, i) => (
+                <label key={r} className="flex items-center gap-2.5 cursor-pointer" htmlFor={`reminder-${i}`}>
+                  <input id={`reminder-${i}`} type="checkbox" checked={reminders[r]} onChange={() => setReminders((prev) => ({ ...prev, [r]: !prev[r] }))} className="h-4 w-4" style={{ accentColor: t.c.brand }} />
+                  <span style={{ color: t.c.text }} className="text-[13px]">{r}</span>
+                </label>
+              ))}
+            </div>
+          </Card>
+          <Card className="p-5">
+            <div style={{ color: t.c.textFaint }} className="text-[11px] uppercase font-semibold tracking-widest mb-3">Próximas integraciones</div>
+            <div className="space-y-2">{["Microsoft Outlook Calendar", "Apple Calendar"].map((x) => <div key={x} className="flex items-center justify-between"><span style={{ color: t.c.textMuted }} className="text-[13px]">{x}</span><Badge label="Próximamente" tone="neutral" size="sm" /></div>)}</div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* CENTRO DE NOTIFICACIONES                                                */
+/* ---------------------------------------------------------------------- */
+
+const NOTIF_ICON = { "Fecha límite": "clock", "Documento": "fileText", "Estado": "refresh", "Equipo": "users", "Sugerencia IA": "sparkles" };
+
+function NotificationsView({ notifications, markRead }) {
+  const t = useT();
+  return (
+    <div>
+      <SectionTitle eyebrow="Centro de notificaciones" title="Notificaciones" action={<Btn variant="outline" size="sm" icon="checkCircle" onClick={() => markRead("all")}>Marcar todas como leídas</Btn>} />
+      <Card className="overflow-hidden">
+        {notifications.map((n, i) => (
+          <div key={n.id} onClick={() => markRead(n.id)} style={{ borderTop: i === 0 ? "none" : `1px solid ${t.c.border}`, background: n.leido ? "transparent" : t.c.brandSoft }} className="flex items-start gap-3.5 p-4 cursor-pointer">
+            <div style={{ background: t.c.surfaceAlt, color: t.c.brand }} className="h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0"><Icon name={NOTIF_ICON[n.tipo] || "bell"} size={16} /></div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-0.5"><span style={{ color: t.c.text }} className="text-[13px] font-medium">{n.texto}</span>{!n.leido && <span style={{ background: t.c.gold }} className="h-1.5 w-1.5 rounded-full flex-shrink-0" />}</div>
+              <div style={{ color: t.c.textFaint }} className="text-[11.5px]">{n.tipo} · {n.fecha}</div>
+            </div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* GESTIÓN DE USUARIOS                                                     */
+/* ---------------------------------------------------------------------- */
+
+function UsersView() {
+  const t = useT();
+  return (
+    <div>
+      <SectionTitle eyebrow="Multiusuario" title="Equipo y usuarios" action={<Btn icon="userPlus">Invitar integrante</Btn>} />
+      <Card className="overflow-hidden mb-6">
+        <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead><tr style={{ borderBottom: `1px solid ${t.c.border}`, color: t.c.textFaint }} className="text-[11px] uppercase tracking-wide"><th className="py-3 px-5 font-semibold">Nombre</th><th className="py-3 px-5 font-semibold">Organización</th><th className="py-3 px-5 font-semibold">Rol</th><th className="py-3 px-5 font-semibold">Contacto</th><th className="py-3 px-5 font-semibold">Estado</th></tr></thead>
+          <tbody>
+            {USERS_TABLE.map((u) => (
+              <tr key={u.id} style={{ borderBottom: `1px solid ${t.c.border}` }}>
+                <td className="py-3 px-5"><div className="flex items-center gap-2.5"><div style={{ background: t.c.brand2 }} className="h-8 w-8 rounded-full flex items-center justify-center text-white text-[10.5px] font-bold">{u.nombre.split(" ").map((s) => s[0]).slice(0, 2).join("")}</div><div><div style={{ color: t.c.text }} className="text-[13.5px] font-medium">{u.nombre}</div><div style={{ color: t.c.textFaint }} className="text-[11.5px]">{u.cargo}</div></div></div></td>
+                <td className="py-3 px-5" style={{ color: t.c.textMuted }}>{u.org}</td>
+                <td className="py-3 px-5"><Badge label={u.rol} tone="brand" size="sm" /></td>
+                <td className="py-3 px-5" style={{ color: t.c.textMuted }}><div className="text-[12.5px]">{u.correo}</div></td>
+                <td className="py-3 px-5"><StatusBadge status={u.estado} size="sm" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+      </Card>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {["Administrador", "Director de proyectos", "Investigador", "Consultor", "Invitado"].map((r) => (
+          <Card key={r} className="p-4"><Icon name="shield" size={15} color={t.c.brand} style={{ marginBottom: 8 }} /><div style={{ color: t.c.text }} className="text-[12.5px] font-semibold">{r}</div></Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* PLAN Y FACTURACIÓN                                                      */
+/* ---------------------------------------------------------------------- */
+
+function BillingView() {
+  const t = useT();
+  const [plan, setPlan] = useState("monthly");
+  return (
+    <div>
+      <SectionTitle eyebrow="Modelo de negocio" title="Plan y facturación" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+        {PLANS.map((p) => (
+          <Card key={p.id} className="p-6 relative" style={p.destacado ? { border: `2px solid ${t.c.brand}` } : {}}>
+            {p.destacado && <div style={{ background: t.c.brand }} className="absolute -top-3 left-6 text-white text-[10.5px] font-semibold px-2.5 py-1 rounded-full">Más popular</div>}
+            <div style={{ color: t.c.text, fontFamily: "var(--font-display)" }} className="font-semibold text-base mb-1">{p.nombre}</div>
+            <div className="flex items-baseline gap-1 mb-4"><span style={{ color: t.c.text, fontFamily: "var(--font-mono)" }} className="text-2xl font-semibold">{p.precio}</span><span style={{ color: t.c.textFaint }} className="text-xs">/ {p.periodo}</span></div>
+            <div className="space-y-2 mb-6">{p.features.map((f, i) => <div key={i} className="flex items-start gap-2"><Icon name="check" size={14} color={t.c.success} style={{ marginTop: 2 }} /><span style={{ color: t.c.textMuted }} className="text-[12.5px]">{f}</span></div>)}</div>
+            <Btn variant={plan === p.id ? "outline" : p.destacado ? "primary" : "outline"} full onClick={() => setPlan(p.id)}>{plan === p.id ? "Plan actual" : "Seleccionar"}</Btn>
+          </Card>
+        ))}
+      </div>
+      <Card className="p-5">
+        <div style={{ color: t.c.textFaint }} className="text-[11px] uppercase font-semibold tracking-widest mb-3">Métodos de pago (próximamente)</div>
+        <div className="flex flex-wrap gap-3">{["Stripe", "PayPal", "Mercado Pago"].map((m) => <div key={m} style={{ border: `1px solid ${t.c.border}`, color: t.c.textMuted }} className="px-4 py-2.5 rounded-lg text-[13px] font-medium flex items-center gap-2"><Icon name="creditCard" size={14} /> {m}</div>)}</div>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* APP SHELL                                                               */
+/* ---------------------------------------------------------------------- */
+
+const VIEW_META = {
+  dashboard: { title: "Panel principal", subtitle: "Resumen general de tu actividad" },
+  opportunities: { title: "Oportunidades", subtitle: "Explora convocatorias disponibles" },
+  workspaces: { title: "Mis convocatorias", subtitle: "Espacios de trabajo activos" },
+  copilot: { title: "Copiloto IA", subtitle: "Formulación asistida de proyectos" },
+  agents: { title: "Biblioteca de agentes", subtitle: "Agentes especializados a tu disposición" },
+  calendar: { title: "Calendario", subtitle: "Fechas y recordatorios" },
+  notifications: { title: "Notificaciones", subtitle: "Actividad reciente de tus convocatorias" },
+  users: { title: "Equipo y usuarios", subtitle: "Roles y permisos de la plataforma" },
+  billing: { title: "Plan y facturación", subtitle: "Gestiona tu suscripción" },
+};
+
+function makeStubConvocatoria(op) {
+  return {
+    id: "new-" + op.id, proyecto: "Nuevo proyecto — " + op.nombre.split(" ").slice(0, 4).join(" "),
+    convocatoria: op.nombre, entidad: op.entidad, pais: op.pais, enlace: op.enlace,
+    descripcion: "Espacio de trabajo creado automáticamente al agregar esta oportunidad. Completa la descripción con el Copiloto IA.",
+    apertura: op.apertura, cierre: op.cierre, resultados: op.cierre, montoSolicitado: 0, montoMax: op.montoMax, moneda: op.moneda,
+    responsable: "Eric Fonseca", equipo: ["u1"], observaciones: "", estado: "Investigación", progreso: 0.04,
+    checklist: [{ id: "n1", texto: "Leer términos de referencia completos", estado: "Pendiente" }],
+    documentos: [],
+    tareas: [{ id: "nt1", titulo: "Leer términos de referencia", estado: "Pendiente", prioridad: "Alta", responsable: "Eric Fonseca", fecha: op.cierre }],
+    presupuesto: [],
+    cronograma: [{ id: "nc1", actividad: "Diagnóstico inicial", fecha: op.apertura, entregable: "Notas de viabilidad", responsable: "Eric Fonseca", estado: "Pendiente" }],
+    evidencias: [],
+    historial: [{ id: "nh1", accion: "Convocatoria agregada al espacio de trabajo", autor: "Eric Fonseca", fecha: "2026-08-01 09:00" }],
+  };
+}
+
+function NubeletechApp() {
+  const [isDark, setIsDark] = useState(() => { try { return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches; } catch (e) { return false; } });
+  const [view, setView] = useState("dashboard");
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [convocatorias, setConvocatorias] = useState(CONVOCATORIAS);
+  const [addedIds, setAddedIds] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [notifications, setNotifications] = useState(NOTIFICATIONS_SEED);
+
+  const colors = isDark ? palette.dark : palette.light;
+  const themeValue = useMemo(() => ({ c: colors, isDark }), [isDark]);
+
+  const handleAddOpportunity = (op) => {
+    if (addedIds.includes(op.id)) return;
+    setAddedIds((prev) => [...prev, op.id]);
+    setConvocatorias((prev) => [makeStubConvocatoria(op), ...prev]);
+  };
+  const openWorkspace = (id) => { setSelectedId(id); setView("workspaces"); };
+  const markRead = (id) => setNotifications((prev) => prev.map((n) => (id === "all" || n.id === id ? { ...n, leido: true } : n)));
+
+  const unreadCount = notifications.filter((n) => !n.leido).length;
+  const selected = convocatorias.find((c) => c.id === selectedId);
+  const meta = VIEW_META[view] || {};
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--surface", colors.surface);
+    document.documentElement.style.setProperty("--border", colors.border);
+    document.documentElement.style.setProperty("--text", colors.text);
+  }, [colors]);
+
+  return (
+    <ThemeCtx.Provider value={themeValue}>
+      <div style={{ background: colors.bg }} className="w-full h-full flex overflow-hidden relative">
+        {mobileOpen && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setMobileOpen(false)} />}
+        <Sidebar view={view} setView={setView} collapsed={collapsed} setCollapsed={setCollapsed} unreadCount={unreadCount} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+        <div className="flex-1 min-w-0 flex flex-col">
+          <Topbar title={meta.title} subtitle={meta.subtitle} isDark={isDark} setIsDark={setIsDark} setView={setView} onMenu={() => setMobileOpen(true)} />
+          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+            {view === "dashboard" && <DashboardView setView={setView} openWorkspace={openWorkspace} />}
+            {view === "opportunities" && <OpportunitiesView addedIds={addedIds} onAdd={handleAddOpportunity} />}
+            {view === "workspaces" && (selected ? <WorkspaceDetailView convocatoria={selected} onBack={() => setSelectedId(null)} /> : <WorkspaceListView convocatorias={convocatorias} onOpen={openWorkspace} setView={setView} />)}
+            {view === "copilot" && <CopilotView />}
+            {view === "agents" && <AgentsView />}
+            {view === "calendar" && <CalendarView />}
+            {view === "notifications" && <NotificationsView notifications={notifications} markRead={markRead} />}
+            {view === "users" && <UsersView />}
+            {view === "billing" && <BillingView />}
+          </main>
+        </div>
+      </div>
+    </ThemeCtx.Provider>
+  );
+}
+
+const rootEl = document.getElementById("root");
+const root = ReactDOM.createRoot(rootEl);
+function start() { root.render(<NubeletechApp />); }
+if (window.claude && window.claude.hot && window.claude.hot.ready) { window.claude.hot.ready(start); } else { start(); }
+</script>
