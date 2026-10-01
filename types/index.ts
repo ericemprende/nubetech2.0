@@ -3,6 +3,7 @@
 // y son el contrato que luego consumirá la capa real de datos (Supabase, etc.).
 
 export type EstadoOportunidad =
+  | "Por revisar" // recién ingestada por un conector automático, aún sin validar
   | "Abierta"
   | "Cierra pronto"
   | "Próxima"
@@ -23,6 +24,8 @@ export interface Oportunidad {
   descripcion: string;
   requisitos: string[];
   fuenteUrl?: string;
+  /** Id del conector que la trajo (p. ej. "grants.gov", "secop"). Ausente = capturada manualmente. */
+  fuente?: string;
 }
 
 export type EstadoConvocatoria =
